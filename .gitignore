@@ -1,0 +1,6 @@
+__pycache__
+data
+document
+build
+*.out
+temp
