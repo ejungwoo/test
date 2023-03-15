@@ -2,28 +2,36 @@ import os
 
 class cwriter:
     """Write c++ class with source and header """
-    def __init__(self):
-        self.name = "LKExampleContainer"
-        self.path = ""
-        self.description = ""
+    def __init__(self,name,file_path,description="",tab_size=2):
+        self.name = name
+        self.path = file_path
+        self.description = description
+        self.tab_size = tab_size
+
+        self.data_init_list = []
+        self.data_exec_list = []
+        self.data_array_def_list = []
+
+        self.par_init_list = []
         self.par_clear_list = []
         self.par_print_list = []
         self.par_copy_list = []
-        self.par_full_list = [[],[],[]]
+        self.par_def_list = [[],[],[]]
+
         self.set_full_list = [[],[],[]]
         self.get_full_list = [[],[],[]]
+
         self.include_root_list = []
         self.include_lilak_list = []
         self.include_other_list = []
-        self.tab_size = 2
   
     def set_name(self,name):
         """Set name of the class"""
         self.name = name
   
-    def set_file_path(self,path):
+    def set_file_path(self,file_path):
         """Set path where files are created"""
-        self.path = path
+        self.path = file_path
 
     def set_description(self, description):
         """Description of the class"""
@@ -234,17 +242,98 @@ class cwriter:
             elif header[:2]=="LK":  self.include_lilak_list.append(header_full)
             else:                   self.include_other_list.append(header_full)
 
+    def add_input_data_array(self,
+                             data_class, data_array_name, data_array_branch_name,
+                             data_array_comment="", data_array_name_lc="", data_name="data",
+                             headers="", use_fname=True):
+        ############ field name ############
+        if use_fname:
+            if data_array_name[0]=="f" and data_array_name[1].isupper:
+                par_name = par_name[1:]
+            else:
+                data_array_name_field = "f" + data_array_name[0].title()+data_array_name[1:]
+        else:
+            data_array_name_field = data_array_name
+            if data_array_name[0]=="f" and data_array_name[1].isupper:
+                par_name = par_name[1:]
+
+        ############ local name ############
+        if len(data_array_name_lc)==0:
+            data_array_name_lc = data_array_name
+            if data_array_name_lc==data_array_name_field:
+                data_array_name_lc = data_array_name_lc + "_"
+
+        self.data_init_list.append(f'fTrackArray = run -> GetBranchA("{data_array_branch_name}");')
+
+        num_data = "num" + data_array_branch_name[0].title()+data_array_branch_name[1:]
+        i_data = "i" + data_array_branch_name[0].title()+data_array_branch_name[1:]
+        tab1 = ' '*(self.tab_size*1)
+        self.data_exec_list.append(f"""
+//Call {data_name} from {data_array_name_field} and get data value
+int {num_data} = {data_array_name_field} -> GetEntriesFast();
+for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
+{tab1}auto *{data_name} = ({data_class} *) {data_array_name_field} -> At({i_data});
+{tab1}//auto value = {data_name} -> GetDataValue(); ...
+"""+"}")
+
+
+    def add_output_data_array(self,
+                              data_class, data_array_name, data_array_branch_name,
+                              data_array_init_size=0, data_array_comment="", data_array_name_lc="", data_name="data",
+                              data_persistency=True, headers="", use_fname=True):
+        ############ field name ############
+        if use_fname:
+            if data_array_name[0]=="f" and data_array_name[1].isupper:
+                par_name = par_name[1:]
+            else:
+                data_array_name_field = "f" + data_array_name[0].title()+data_array_name[1:]
+        else:
+            data_array_name_field = data_array_name
+            if data_array_name[0]=="f" and data_array_name[1].isupper:
+                par_name = par_name[1:]
+
+        ############ persistency ############
+        data_array_name_persis = data_array_name_field + "Persistency"
+        data_array_name_persis_lc = data_array_name_lc + "Persistency"
+        self.add_private_par("bool", data_array_name_persis_lc, "true" if data_persistency else "false")
+
+        ############ branch name ############
+        #if len(data_array_branch_name)==0: data_array_branch_name = data_array_name;
+
+        ############ local name ############
+        if len(data_array_name_lc)==0:
+            data_array_name_lc = data_array_name
+            if data_array_name_lc==data_array_name_field:
+                data_array_name_lc = data_array_name_lc + "_"
+
+        self.data_array_def_list.append(f"TClonesArray *{data_array_name_field} = nullptr;")
+
+        if data_array_init_size>0: self.data_init_list.append(f'{data_array_name_field} = new TClonesArray("{data_class}");')
+        else:                      self.data_init_list.append(f'{data_array_name_field} = new TClonesArray("{data_class}",{data_array_init_size});')
+        self.data_init_list.append(f'run -> RegisterBranch("{data_array_branch_name}", {data_array_name_field}, {data_array_name_persis});')
+
+        num_data = "num" + data_array_branch_name[0].title()+data_array_branch_name[1:]
+        i_data = "i" + data_array_branch_name[0].title()+data_array_branch_name[1:]
+        tab1 = ' '*(self.tab_size*1)
+        self.data_exec_list.append(f"""
+//Construct (new) {data_name} from {data_array_name_field} and set data value
+int {num_data} = {data_array_name_field} -> GetEntriesFast();
+for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
+{tab1}auto *{data_name} = ({data_class} *) {data_array_name_field} -> ConstructedAt({i_data});
+{tab1}//{data_name} -> SetData(value); ...
+"""+"}")
+
     def add_par(self,ppp_index,
-                par_type, par_name, par_init, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fpar=True):
+                headers="", use_fname=True):
         """ Add parameter
 
         ppp_index    (int) -- 0: public, 1: protected, 2: private.
         par_type     (string) -- Type of parameter
         par_name     (string) -- Name of parameter
-        par_init     (string ; "") -- Initial parameter value. If par_init is empty string(""), it will not be initialized
+        par_init_val (string ; "") -- Initial parameter value. If par_init_val is empty string(""), it will not be initialized
                                       However it is highly recommended that to give initial parameter value to a value that is unlikely to be given.
                                       This will help you in debugging in the analysis step.
         par_name_lc  (string ; "") -- Local parameter name. By defualt, = par_name or par_name + "_"
@@ -257,30 +346,63 @@ class cwriter:
         get_comment  (string ; "") -- Comment to getter
         get_is_const (bool ; True) -- Set True if getter is const
         headers      (string ; "") -- Headers to include (separated by space of line-break)
-        use_fpar     (bool ; True) -- By default, field (or member) parameter name will be set to
-                                      "f" + par_name[0].title()+par_name[1:]. Set use_fpar to False if you wish
+        use_fname    (bool ; True) -- By default, field (or member) parameter name will be set to
+                                      "f" + par_name[0].title()+par_name[1:]. Set use_fname to False if you wish
                                       to use par_name itself.
         """
         ############ field parameter name ############
-        if use_fpar: par_name_field = "f" + par_name[0].title()+par_name[1:]
-        else:        par_name_field = par_name
-
-        ############ parameter definition ############
-        par_clear = par_name_field
-        if len(par_init)>0:
-            par_clear = par_clear + " = " + par_init;
-        par_clear = par_clear + ";"
-        par_full = par_type + " " + par_clear
-        par_full = self.make_doxygen_comment(par_comment,par_full)
-
-        ############ parameter print ############
-        par_print = f'lx_info << "{par_name} : " << {par_name_field} << std::endl;'
+        if use_fname:
+            if par_name[0]=="f" and par_name[1].isupper:
+                par_name = par_name[1:]
+            else:
+                par_name_field = "f" + par_name[0].title()+par_name[1:]
+        else:
+            par_name_field = par_name
+            if par_name[0]=="f" and par_name[1].isupper:
+                par_name = par_name[1:]
 
         ############ local parameter name ############
         if len(par_name_lc)==0:
             par_name_lc = par_name
             if par_name_lc==par_name_field:
                 par_name_lc = par_name_lc + "_"
+
+        ############ parameter task init ############
+        par_task_init = par_name_field
+        par_getpar_comment = ""
+        if   par_type=="bool":     par_type_getpar = "Bool"
+        elif par_type=="int":      par_type_getpar = "Int"
+        elif par_type=="double":   par_type_getpar = "Double"
+        elif par_type=="Bool_t":   par_type_getpar = "Bool"
+        elif par_type=="Int_t":    par_type_getpar = "Int"
+        elif par_type=="Double_t": par_type_getpar = "Double"
+        elif par_type=="TString":  par_type_getpar = "String"
+        elif par_type=="const char*":  par_type_getpar = "String"
+        elif par_type=="TVector3": par_type_getpar = "V3"
+        elif par_type=="Color_t":  par_type_getpar = "Color"
+        elif par_type=="Width_t":  par_type_getpar = "Width"
+        elif par_type=="Size_t":   par_type_getpar = "Size"
+        else:
+            par_getpar_comment = f"//TODO The type {par_type} is not featured with LKParameterContainer. Please modify Below:" 
+            par_type_getpar = par_type
+        par_task_init = f'//{par_name_field} = par -> GetPar{par_type_getpar}("{par_name_lc}");';
+
+        if isinstance(par_init_val, str)==False: par_init_val = str(par_init_val)
+
+        ############ parameter definition ############
+        if len(par_init_val)>0: par_def = f'{par_type} {par_name_field} = {par_init_val};';
+        else:                   par_def = f'{par_type} {par_name_field};';
+        par_def = self.make_doxygen_comment(par_comment,par_def)
+
+        ############ parameter clear ############
+        if len(par_init_val)>0: par_clear = f'{par_name_field} = {par_init_val};';
+        else:                   par_clear = f'{par_name_field};';
+
+        ############ parameter print ############
+        if par_type=="bool" or par_type=="int" or par_type=="double" or par_type=="Bool_t" or par_type=="Int_t" or par_type=="Double_t" or par_type=="TString" or par_type=="const char*":
+            par_print = f'lx_info << "{par_name} : " << {par_name_field} << std::endl;'
+        else:
+            par_print = f'//lx_info << "{par_name} : " << {par_name_field} << std::endl;'
 
         ############ settter definition ############
         if len(set_type)==0: set_type = par_type
@@ -294,14 +416,16 @@ class cwriter:
         get_full = self.make_fline(f"{get_type} {get_name}() const " +"{"+ f"return {par_name_field};"+"}", in_line=True)
   
         ############ parameter copy ############
-        #par_copy = self.make_function("","objCopy."+set_name, f"{par_name_field}", "", 0, "")
-        par_copy = self.make_fline(f"objCopy.{set_name}({par_name_field})")
+        par_copy = f"objCopy.{set_name}({par_name_field})"
 
         ############ gettter definition ############
+        if (par_getpar_comment)!=0:
+            self.par_init_list.append(par_getpar_comment);
+        self.par_init_list.append(par_task_init);
         self.par_clear_list.append(par_clear);
         self.par_print_list.append(par_print);
         self.par_copy_list.append(par_copy);
-        self.par_full_list[ppp_index].append(par_full);
+        self.par_def_list[ppp_index].append(par_def);
         self.set_full_list[0].append(set_full);
         self.get_full_list[0].append(get_full);
 
@@ -309,50 +433,48 @@ class cwriter:
         self.include_headers(headers)
   
     def add_public_par(self,
-                par_type, par_name, par_init, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fpar=True):
+                headers="", use_fname=True):
         self.add_par(0,
-                par_type, par_name, par_init, par_comment, par_name_lc,
+                par_type, par_name, par_init_val, par_comment, par_name_lc,
                 set_type, set_name, set_comment,
                 get_type, get_name, get_comment, get_is_const,
-                headers, use_fpar)
+                headers, use_fname)
 
     def add_protected_par(self,
-                par_type, par_name, par_init, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fpar=True):
+                headers="", use_fname=True):
         self.add_par(1,
-                par_type, par_name, par_init, par_comment, par_name_lc,
+                par_type, par_name, par_init_val, par_comment, par_name_lc,
                 set_type, set_name, set_comment,
                 get_type, get_name, get_comment, get_is_const,
-                headers, use_fpar)
+                headers, use_fname)
 
     def add_private_par(self,
-                par_type, par_name, par_init, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fpar=True):
+                headers="", use_fname=True):
         self.add_par(2,
-                par_type, par_name, par_init, par_comment, par_name_lc,
+                par_type, par_name, par_init_val, par_comment, par_name_lc,
                 set_type, set_name, set_comment,
                 get_type, get_name, get_comment, get_is_const,
-                headers, use_fpar)
+                headers, use_fname)
 
     def print_container(self,to_screen=False,to_file=True,print_example_comments=True):
-        """Print header and source file content to screen or file
+        """Print header and source file of lilak container class content to screen or file
 
         to_screen (bool ; False) -- If True, print container to screen
         to_file (bool ; True) -- If True, print container to file ({path}/{name}.cc, {path}/{name}.hh) 
         print_example_comments (bool ; True) -- Print comments that helps you filling up reset of the class.
         """
         self.include_headers('TClonesArray.h')
-        self.include_headers('LKLogger.h')
-        self.include_headers('LKContainer.h')
-        #self.include_headers('LKParameterContainer.h')
-        #self.include_headers('LKRun.h')
+        self.include_headers('LKLogger.hh')
+        self.include_headers('LKContainer.hh')
         self.include_headers('<iostream>')
 
         tab1 = ' '*(self.tab_size*1)
@@ -369,8 +491,7 @@ Or use print_example_comments=False option to omit printing
 
 # Example LILAK container class
 
-## Essential component: 
- - inherit LKContainer as public.
+## Essential
  - Write constructor containing Clear() method.
  - Write Clear() method.
 
@@ -384,7 +505,7 @@ This means that all containers
 Version number (2nd par. in ClassDef of source file) should be changed if the class has been modified.
 This notifiy users that the container has been update in the new LILAK (or side project version).
 
-## Recommended component:
+## Recommended
  - Documentaion like this!
  - Write Print() to see what is inside the container;
 
@@ -403,7 +524,7 @@ This notifiy users that the container has been update in the new LILAK (or side 
 
         source_include = f'#include "{self.name}.hh"'
 
-        ############## public ############## 
+        ############## public ##############
         header_class_public = ' '*self.tab_size + "public:"
         if print_example_comments:
             constructor_content = "// It is essential to place Clear() method inside the constructor for TClonesArray feature.\nClear();"
@@ -414,52 +535,58 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_clear = self.make_fline("virtual void Clear(Option_t *option)", tab_no=2, is_header=True)
         header_print = self.make_fline("virtual void Print(Option_t *option) const;", tab_no=2, is_header=True)
         header_copy = self.make_fline("virtual void Copy (TObject &object) const;",  tab_no=2, is_header=True)
+
         header_getter = tab2 + etab2.join(self.get_full_list[0])
         header_setter = tab2 + etab2.join(self.set_full_list[0])
-        header_public_par = tab2 + etab2.join(self.par_full_list[0])
+        header_public_par = tab2 + etab2.join(self.par_def_list[0])
 
         clear_content = '\n'.join(self.par_clear_list)
+
         self.par_print_list.insert(0,"//TODO You will probability need to modify here")
         self.par_print_list.insert(1,f'lx_info << "{self.name} container" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
+
         self.par_copy_list.insert(0,"//TODO You should copy data from this container to objCopy")
         self.par_copy_list.insert(1,"LKContainer::Copy(object);")
         self.par_copy_list.insert(2,f"auto objCopy = ({self.name} &) object;")
         copy_content = '\n'.join(self.par_copy_list)
+
         source_constructor = self.make_function("", self.name, "", constructor_content, 0, is_source=True)
         source_clear = self.make_function("void", "Clear", "Option_t *option", clear_content, 0, is_source=True)
         source_print = self.make_function("void", "Print", "Option_t *option", print_content, 0, "", True, is_source=True)
         source_copy = self.make_function ("void", "Copy",  "TObject &object",  copy_content, 0, "", True, is_source=True)
 
-        ############## protected ############## 
+        ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
-        header_protected_par = tab2 + etab2.join(self.par_full_list[1])
+        header_protected_par = tab2 + etab2.join(self.par_def_list[1])
 
-        ############## private ############## 
+        ############## private ##############
         header_class_private = ' '*self.tab_size + "private:"
-        header_private_par = tab2 + etab2.join(self.par_full_list[2])
+        header_private_par = tab2 + etab2.join(self.par_def_list[2])
 
-        ############## other ############## 
+        ############## other ##############
         header_class_end = "};"
         header_end = "\n#endif"
 
-        header_classdef = self.make_fline(f"ClassDef({self.name},0)", omit_semicolon=True)
+        header_classdef = self.make_fline(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
         source_classimp = self.make_fline(f"ClassImp({self.name})", omit_semicolon=True)
 
-        ############## join header ############## 
-        header_list = [header_define, header_LKContainer,
+        ############## join header ##############
+        header_list = [
+            header_define, header_LKContainer,
             header_include_root, header_include_lilak, header_include_other,
             "",header_description, header_class,
             header_class_public, header_constructor, header_destructor,
             "", header_clear, header_print, header_copy,
-            "", header_getter, "", header_setter]
-        if (len(header_public_par.strip())>0): header_list.extend(["", header_public_par])
-        if header_protected_par.strip():       header_list.extend(["",header_class_protected, header_protected_par])
-        if header_private_par.strip():         header_list.extend(["",header_class_private, header_private_par])
+            "", header_getter,
+            "", header_setter]
+        if len(header_public_par.strip())>0:    header_list.extend(["", header_public_par])
+        if len(header_protected_par.strip())>0: header_list.extend(["",header_class_protected, header_protected_par])
+        if len(header_private_par.strip())>0:   header_list.extend(["",header_class_private, header_private_par])
         header_list.extend(["",header_classdef,header_class_end,header_end])
         header_all = '\n'.join(header_list)
 
-        ############## join source ############## 
+        ############## join source ##############
         source_list = [
             source_include,
             "",source_classimp,
@@ -470,7 +597,137 @@ This notifiy users that the container has been update in the new LILAK (or side 
             ]
         source_all = '\n'.join(source_list)
 
-        ############## Print ############## 
+        ############## Print ##############
+        name_full = os.path.join(self.path,self.name)
+
+        if to_file:
+            print(name_full)
+            with open(f'{name_full}.hh', 'w') as f1: print(header_all,file=f1)
+            with open(f'{name_full}.cc', 'w') as f1: print(source_all,file=f1)
+
+        if to_screen:
+            print(f"{name_full}.hh >>>>>")
+            print(header_all)
+            print(f"\n\n{name_full}.cc >>>>>")
+            print(source_all)
+
+
+    def print_task(self,to_screen=False,to_file=True,print_example_comments=True):
+        """Print header and source file of lilak task class content to screen or file
+
+        to_screen (bool ; False) -- If True, print container to screen
+        to_file (bool ; True) -- If True, print container to file ({path}/{name}.cc, {path}/{name}.hh) 
+        print_example_comments (bool ; True) -- Print comments that helps you filling up reset of the class.
+        """
+        self.include_headers('TClonesArray.h')
+        self.include_headers('LKLogger.hh')
+        self.include_headers('LKTask.hh')
+        self.include_headers('LKParameterContainer.h')
+        self.include_headers('LKRun.h')
+        self.include_headers('<iostream>')
+
+        tab1 = ' '*(self.tab_size*1)
+        tab2 = ' '*(self.tab_size*2)
+        etab1 = '\n'+tab1
+        etab2 = '\n'+tab2
+
+        name_upper = self.name.upper()
+        header_define = f"""#ifndef {name_upper}_HH
+#define {name_upper}_HH
+"""
+        header_LKTask="""Remove this comment block after reading it through
+Or use print_example_comments=False option to omit printing
+
+# Example LILAK task class
+
+## Essential
+ - Write Init() method.
+ - Write Exec() method using Clear() method to all clones arrays.
+"""
+        if print_example_comments:
+            header_LKTask = self.make_doxygen_comment(header_LKTask,not_for_doxygen=True) + "\n"
+        else:
+            header_LKTask = ""
+        header_include_lilak = '\n'.join(sorted(set(self.include_lilak_list)))
+        header_include_root = '\n'.join(sorted(set(self.include_root_list)))
+        header_include_other = '\n'.join(sorted(set(self.include_other_list)))
+        header_description = self.make_doxygen_comment(self.description)
+        header_class = f"class {self.name} : public LKTask" + "\n{"
+
+        source_include = f'#include "{self.name}.hh"'
+
+        ############## public ##############
+        header_class_public = ' '*self.tab_size + "public:"
+        constructor_content = ""
+        header_constructor = self.make_fline(self.name, tab_no=2, is_header=True)
+        header_destructor = self.make_fline("virtual ~"+self.name, tab_no=2, is_header=True)
+        header_init = self.make_fline("bool Init()", tab_no=2, is_header=True)
+        header_exec = self.make_fline("void Exec(Option_t *option)", tab_no=2, is_header=True)
+
+        header_getter = tab2 + etab2.join(self.get_full_list[0])
+        header_setter = tab2 + etab2.join(self.set_full_list[0])
+        header_public_par = tab2 + etab2.join(self.par_def_list[0])
+
+        self.par_init_list.insert(0,"//TODO Put intialization todos here which are not iterative job though event")
+        self.par_init_list.insert(1,f'lk_info << "Initializing {self.name}" << std::endl;')
+        self.par_init_list.insert(2,"")
+        self.par_init_list.insert(3,"auto run = LKRun::GetRun();")
+        self.par_init_list.insert(4,"auto par = run -> GetPar();")
+        self.par_init_list.insert(5,"")
+        init_content = '\n'.join(self.par_init_list)
+
+        self.data_exec_list.insert(0,"//TODO Put the main task job here. Exec() method will be executed for every event.")
+        self.data_exec_list.insert(1,"//All the Clear() methods of output data array are usually called at the start of the Exec()")
+        self.data_exec_list.append("")
+        self.data_exec_list.append(f'lk_info << "{self.name} container" << std::endl;')
+        exec_content = '\n'.join(self.data_exec_list)
+
+        source_constructor = self.make_function("", self.name, "", constructor_content, 0, is_source=True)
+        source_init = self.make_function("bool", "Init", "", init_content, 0, is_source=True)
+        source_exec = self.make_function("void", "Exec", "Option_t *option", exec_content, 0, "", True, is_source=True)
+
+        ############## protected ##############
+        header_class_protected = ' '*self.tab_size + "protected:"
+        header_protected_par = tab2 + etab2.join(self.par_def_list[1])
+
+        ############## private ##############
+        header_class_private = ' '*self.tab_size + "private:"
+        header_private_par = tab2 + etab2.join(self.data_array_def_list)
+        header_private_par = tab2 + etab2.join(self.par_def_list[2])
+
+        ############## other ##############
+        header_class_end = "};"
+        header_end = "\n#endif"
+
+        header_classdef = self.make_fline(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
+        source_classimp = self.make_fline(f"ClassImp({self.name})", omit_semicolon=True)
+
+        ############## join header ##############
+        header_list = [
+            header_define, header_LKTask,
+            header_include_root, header_include_lilak, header_include_other,
+            "",header_description, header_class,
+            header_class_public, header_constructor, header_destructor,
+            "", header_init, header_exec,
+            "", header_getter,
+            "", header_setter]
+        if len(header_public_par.strip())>0:     header_list.extend(["", header_public_par])
+        if len(header_protected_par.strip())>0:  header_list.extend(["",header_class_protected, header_protected_par])
+        if len(header_private_par.strip())>0:    header_list.extend(["",header_class_private, header_private_par])
+        header_list.extend(["",header_classdef,header_class_end,header_end])
+        header_all = '\n'.join(header_list)
+
+        ############## join source ##############
+        source_list = [
+            source_include,
+            "",source_classimp,
+            "",source_constructor,
+            "",source_init,
+            "",source_exec,
+            ]
+        source_all = '\n'.join(source_list)
+
+        ############## Print ##############
         name_full = os.path.join(self.path,self.name)
 
         if to_file:
