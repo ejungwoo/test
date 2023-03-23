@@ -194,18 +194,17 @@ class cwriter:
 
         return self.make_function(func_type, func_name, func_parameters, func_content, tab_no, func_comment, func_is_const, is_header, is_source, omit_semicolon, in_line)
 
-    def make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False):
+    def make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True):
         """Make doxygen comment
 
         add_to (string) -- If add_to parameter is set True, comment will be put after (before)
                            for the case comment is one-line (multi-line) and return it.
-                           Return just comment if add_to is set False. 
+                           Return comment, is_mult_line where is_mult_line is True when comment is multi-line if add_to is set False. 
         always_mult_line (bool) -- The comments are assumed that it is multi-line and use /** [...] */
         not_for_doxygen (bool) -- If True: /** -> /*, ///< -> //
         """
         if len(comment)==0:
-            if len(add_to)>0: return add_to
-            else:             return ""
+            return add_to
         else:
             if always_mult_line or "\n" in comment or "\r\n" in comment:
                 lines = comment.split('\n')
@@ -216,19 +215,20 @@ class cwriter:
                     else:                 lines.insert(0,"/**")
                     lines.append(" */")
                 comment = '\n'.join(lines)
-                if len(add_to)>0: return comment + add_to
-                else:             return comment
+                return comment + add_to
             else:
-                comment = " ///< " + comment;
-                if len(add_to)>0: return add_to + comment
-                else:             return comment
+                if is_persistence:
+                    comment = " ///< " + comment;
+                else:
+                    comment = " ///<! " + comment;
+                return add_to + comment
 
-    def include_headers(self,headers):
-        """Include header files assuming that headers are separated by spaces or line-break"""
-        if len(headers)==0:
+    def include_headers(self,includes):
+        """Include header files assuming that includes are separated by spaces or line-break"""
+        if len(includes)==0:
             return
-        header_list = headers.replace(' ','\n')
-        header_list = headers.split('\n')
+        header_list = includes.replace(' ','\n')
+        header_list = includes.split('\n')
         for header in header_list:
             if header[:8]!="#include":
                 if header[0]=='"' or header[0]=='<':
@@ -245,7 +245,7 @@ class cwriter:
     def add_input_data_array(self,
                              data_class, data_array_name, data_array_branch_name,
                              data_array_comment="", data_array_name_lc="", data_name="data",
-                             headers="", use_fname=True):
+                             includes="", use_fname=True):
         ############ field name ############
         if use_fname:
             if data_array_name[0]=="f" and data_array_name[1].isupper:
@@ -275,12 +275,13 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
 {tab1}auto *{data_name} = ({data_class} *) {data_array_name_field} -> At({i_data});
 {tab1}//auto value = {data_name} -> GetDataValue(); ...
 """+"}")
+        self.include_headers(includes)
 
 
     def add_output_data_array(self,
                               data_class, data_array_name, data_array_branch_name,
                               data_array_init_size=0, data_array_comment="", data_array_name_lc="", data_name="data",
-                              data_persistency=True, headers="", use_fname=True):
+                              data_persistency=True, includes="", use_fname=True):
         ############ field name ############
         if use_fname:
             if data_array_name[0]=="f" and data_array_name[1].isupper:
@@ -322,12 +323,13 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
 {tab1}auto *{data_name} = ({data_class} *) {data_array_name_field} -> ConstructedAt({i_data});
 {tab1}//{data_name} -> SetData(value); ...
 """+"}")
+        self.include_headers(includes)
 
     def add_par(self,ppp_index,
-                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fname=True):
+                includes="", use_fname=True):
         """ Add parameter
 
         ppp_index    (int) -- 0: public, 1: protected, 2: private.
@@ -345,7 +347,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         get_name     (string ; "") -- Getter name. By defualt, = Get + par_name[0].title()+par_name[1:]
         get_comment  (string ; "") -- Comment to getter
         get_is_const (bool ; True) -- Set True if getter is const
-        headers      (string ; "") -- Headers to include (separated by space of line-break)
+        includes     (string ; "") -- Headers to include (separated by space of line-break)
         use_fname    (bool ; True) -- By default, field (or member) parameter name will be set to
                                       "f" + par_name[0].title()+par_name[1:]. Set use_fname to False if you wish
                                       to use par_name itself.
@@ -392,6 +394,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         ############ parameter definition ############
         if len(par_init_val)>0: par_def = f'{par_type} {par_name_field} = {par_init_val};';
         else:                   par_def = f'{par_type} {par_name_field};';
+    #par_persistency
         par_def = self.make_doxygen_comment(par_comment,par_def)
 
         ############ parameter clear ############
@@ -429,53 +432,64 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         self.set_full_list[0].append(set_full);
         self.get_full_list[0].append(get_full);
 
-        ############ include headers ############
-        self.include_headers(headers)
+        ############ include includes ############
+        self.include_headers(includes)
   
     def add_public_par(self,
-                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fname=True):
+                includes="", use_fname=True):
         self.add_par(0,
-                par_type, par_name, par_init_val, par_comment, par_name_lc,
+                par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
                 set_type, set_name, set_comment,
                 get_type, get_name, get_comment, get_is_const,
-                headers, use_fname)
+                includes, use_fname)
 
     def add_protected_par(self,
-                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fname=True):
+                includes="", use_fname=True):
         self.add_par(1,
-                par_type, par_name, par_init_val, par_comment, par_name_lc,
+                par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
                 set_type, set_name, set_comment,
                 get_type, get_name, get_comment, get_is_const,
-                headers, use_fname)
+                includes, use_fname)
 
     def add_private_par(self,
-                par_type, par_name, par_init_val, par_comment="", par_name_lc="",
+                par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True,
-                headers="", use_fname=True):
+                includes="", use_fname=True):
         self.add_par(2,
-                par_type, par_name, par_init_val, par_comment, par_name_lc,
+                par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
                 set_type, set_name, set_comment,
                 get_type, get_name, get_comment, get_is_const,
-                headers, use_fname)
+                includes, use_fname)
 
-    def print_container(self,to_screen=False,to_file=True,print_example_comments=True):
+    def print_container(self,to_screen=False,to_file=True,print_example_comments=True,
+                        inheritance='public LKContainer',
+                        includes='LKContainer.hh'):
         """Print header and source file of lilak container class content to screen or file
 
         to_screen (bool ; False) -- If True, print container to screen
         to_file (bool ; True) -- If True, print container to file ({path}/{name}.cc, {path}/{name}.hh) 
         print_example_comments (bool ; True) -- Print comments that helps you filling up reset of the class.
+        inheritance (string ; 'LKContainer') -- Class inheritance.
+        includes (string ; 'LKContainer.hh') -- headers to be included separated by space
         """
         self.include_headers('TClonesArray.h')
         self.include_headers('LKLogger.hh')
-        self.include_headers('LKContainer.hh')
+        self.include_headers(includes)
         self.include_headers('<iostream>')
+
+        inherit_class_list = inheritance.split(',')
+        inherit_class = inherit_class_list[0]
+        inherit_class = inherit_class.replace('public',' ')
+        inherit_class = inherit_class.replace('private',' ')
+        inherit_class = inherit_class.replace('private',' ')
+        inherit_class = inherit_class.strip()
 
         tab1 = ' '*(self.tab_size*1)
         tab2 = ' '*(self.tab_size*2)
@@ -486,7 +500,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         header_define = f"""#ifndef {name_upper}_HH
 #define {name_upper}_HH
 """
-        header_LKContainer="""Remove this comment block after reading it through
+        header_container="""Remove this comment block after reading it through
 Or use print_example_comments=False option to omit printing
 
 # Example LILAK container class
@@ -513,14 +527,15 @@ This notifiy users that the container has been update in the new LILAK (or side 
  - Write Copy() for copying object
 """
         if print_example_comments:
-            header_LKContainer = self.make_doxygen_comment(header_LKContainer,not_for_doxygen=True) + "\n"
+            header_container = self.make_doxygen_comment(header_container,not_for_doxygen=True)
+            header_container = header_container + "\n"
         else:
-            header_LKContainer = ""
+            header_container = ""
         header_include_lilak = '\n'.join(sorted(set(self.include_lilak_list)))
         header_include_root = '\n'.join(sorted(set(self.include_root_list)))
         header_include_other = '\n'.join(sorted(set(self.include_other_list)))
         header_description = self.make_doxygen_comment(self.description)
-        header_class = f"class {self.name} : public LKContainer" + "\n{"
+        header_class = f"class {self.name} : {inheritance}" + "\n{"
 
         source_include = f'#include "{self.name}.hh"'
 
@@ -540,14 +555,16 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_setter = tab2 + etab2.join(self.set_full_list[0])
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
 
+        self.par_clear_list.insert(0,f"{inherit_class}::Print(option);")
         clear_content = '\n'.join(self.par_clear_list)
 
         self.par_print_list.insert(0,"//TODO You will probability need to modify here")
-        self.par_print_list.insert(1,f'lx_info << "{self.name} container" << std::endl;')
+        self.par_print_list.insert(1,f"{inherit_class}::Print();")
+        self.par_print_list.insert(2,f'lx_info << "{self.name} container" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
 
         self.par_copy_list.insert(0,"//TODO You should copy data from this container to objCopy")
-        self.par_copy_list.insert(1,"LKContainer::Copy(object);")
+        self.par_copy_list.insert(1,f"{inherit_class}::Copy(object);")
         self.par_copy_list.insert(2,f"auto objCopy = ({self.name} &) object;")
         copy_content = '\n'.join(self.par_copy_list)
 
@@ -573,7 +590,7 @@ This notifiy users that the container has been update in the new LILAK (or side 
 
         ############## join header ##############
         header_list = [
-            header_define, header_LKContainer,
+            header_define, header_container,
             header_include_root, header_include_lilak, header_include_other,
             "",header_description, header_class,
             header_class_public, header_constructor, header_destructor,
