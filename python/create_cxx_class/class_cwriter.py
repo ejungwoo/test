@@ -2,7 +2,7 @@ import os
 
 class cwriter:
     """Write c++ class with source and header """
-    def __init__(self,name,file_path,description="",tab_size=2):
+    def __init__(self,name="className",file_path="data",description="",tab_size=2):
         self.name = name
         self.path = file_path
         self.description = description
@@ -24,6 +24,8 @@ class cwriter:
         self.include_root_list = []
         self.include_lilak_list = []
         self.include_other_list = []
+
+        self.parfile_lines = []
   
     def set_name(self,name):
         """Set name of the class"""
@@ -203,7 +205,7 @@ class cwriter:
         always_mult_line (bool) -- The comments are assumed that it is multi-line and use /** [...] */
         not_for_doxygen (bool) -- If True: /** -> /*, ///< -> //
         """
-        if len(comment)==0:
+        if is_persistence and len(comment)==0:
             return add_to
         else:
             if always_mult_line or "\n" in comment or "\r\n" in comment:
@@ -370,6 +372,13 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
                 par_name_lc = par_name_lc + "_"
 
         ############ parameter task init ############
+        if isinstance(par_init_val, str)==False: par_init_val = str(par_init_val)
+        init_val_is_clear = False
+        if par_init_val.find("{x}")>=0:
+            init_val_is_clear = True
+            par_init_val = par_init_val.replace("{x}",par_name_field)
+        par_file_val = par_init_val
+
         par_task_init = par_name_field
         par_getpar_comment = ""
         if   par_type=="bool":     par_type_getpar = "Bool"
@@ -380,26 +389,44 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         elif par_type=="Double_t": par_type_getpar = "Double"
         elif par_type=="TString":  par_type_getpar = "String"
         elif par_type=="const char*":  par_type_getpar = "String"
-        elif par_type=="TVector3": par_type_getpar = "V3"
         elif par_type=="Color_t":  par_type_getpar = "Color"
         elif par_type=="Width_t":  par_type_getpar = "Width"
         elif par_type=="Size_t":   par_type_getpar = "Size"
+        elif par_type=="TVector3":
+            par_type_getpar = "V3"
+            par_file_val = par_file_val[par_file_val.find('(')+1:par_file_val.find(')')]
+            par_file_val = par_file_val.replace(',','  ')
         else:
             par_getpar_comment = f"//TODO The type {par_type} is not featured with LKParameterContainer. Please modify Below:" 
             par_type_getpar = par_type
-        par_task_init = f'//{par_name_field} = par -> GetPar{par_type_getpar}("{par_name_lc}");';
-
-        if isinstance(par_init_val, str)==False: par_init_val = str(par_init_val)
+        #par_task_init = f'//{par_name_field} = par -> GetPar{par_type_getpar}("{par_name_lc}");'
+        par_task_init = f'{par_name_field} = par -> GetPar{par_type_getpar}("{par_name_lc}");'
 
         ############ parameter definition ############
-        if len(par_init_val)>0: par_def = f'{par_type} {par_name_field} = {par_init_val};';
-        else:                   par_def = f'{par_type} {par_name_field};';
-    #par_persistency
-        par_def = self.make_doxygen_comment(par_comment,par_def)
+        init_from_header = True
+        if init_val_is_clear:
+            init_from_header = False
+        elif len(par_init_val)==0:
+            init_from_header = False
+        elif par_init_val.find('->')>0:
+            init_from_header = False
+        elif par_init_val.find('.')>0:
+            if par_init_val[par_init_val.find('.')+1].isdigit()==False:
+                init_from_header = False
+
+        if init_val_is_clear: line_parfile = f'#{par_name_lc} {par_file_val}'
+        else:                 line_parfile = f'{par_name_lc} {par_file_val}'
+        if init_from_header: par_def = f'{par_type} {par_name_field} = {par_init_val};'
+        else:                par_def = f'{par_type} {par_name_field};'
+        par_def = self.make_doxygen_comment(par_comment,par_def,is_persistence=par_persistency)
 
         ############ parameter clear ############
-        if len(par_init_val)>0: par_clear = f'{par_name_field} = {par_init_val};';
-        else:                   par_clear = f'{par_name_field};';
+        if init_val_is_clear:
+            par_clear = f'{par_init_val};';
+        elif len(par_init_val)>0:
+            par_clear = f'{par_name_field} = {par_init_val};';
+        else:
+            par_clear = f'{par_name_field};';
 
         ############ parameter print ############
         if par_type=="bool" or par_type=="int" or par_type=="double" or par_type=="Bool_t" or par_type=="Int_t" or par_type=="Double_t" or par_type=="TString" or par_type=="const char*":
@@ -422,7 +449,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         par_copy = f"objCopy.{set_name}({par_name_field})"
 
         ############ gettter definition ############
-        if (par_getpar_comment)!=0:
+        if len(par_getpar_comment)!=0:
             self.par_init_list.append(par_getpar_comment);
         self.par_init_list.append(par_task_init);
         self.par_clear_list.append(par_clear);
@@ -434,6 +461,9 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
 
         ############ include includes ############
         self.include_headers(includes)
+
+        ############ parameter container file ############
+        self.parfile_lines.append(line_parfile)
   
     def add_public_par(self,
                 par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
@@ -468,6 +498,10 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
                 get_type, get_name, get_comment, get_is_const,
                 includes, use_fname)
 
+    def init_print(self):
+        if os.path.exists(self.path)==False:
+            os.mkdir(self.path,exist_ok=True) 
+
     def print_container(self,to_screen=False,to_file=True,print_example_comments=True,
                         inheritance='public LKContainer',
                         includes='LKContainer.hh'):
@@ -479,6 +513,8 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         inheritance (string ; 'LKContainer') -- Class inheritance.
         includes (string ; 'LKContainer.hh') -- headers to be included separated by space
         """
+        self.init_print()
+
         self.include_headers('TClonesArray.h')
         self.include_headers('LKLogger.hh')
         self.include_headers(includes)
@@ -555,7 +591,7 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_setter = tab2 + etab2.join(self.set_full_list[0])
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
 
-        self.par_clear_list.insert(0,f"{inherit_class}::Print(option);")
+        self.par_clear_list.insert(0,f"{inherit_class}::Clear(option);")
         clear_content = '\n'.join(self.par_clear_list)
 
         self.par_print_list.insert(0,"//TODO You will probability need to modify here")
@@ -614,6 +650,9 @@ This notifiy users that the container has been update in the new LILAK (or side 
             ]
         source_all = '\n'.join(source_list)
 
+        ############## Par ##############
+        par_all = '\n'.join(self.parfile_lines)
+
         ############## Print ##############
         name_full = os.path.join(self.path,self.name)
 
@@ -621,6 +660,7 @@ This notifiy users that the container has been update in the new LILAK (or side 
             print(name_full)
             with open(f'{name_full}.hh', 'w') as f1: print(header_all,file=f1)
             with open(f'{name_full}.cc', 'w') as f1: print(source_all,file=f1)
+            #with open(f'{name_full}.par', 'w') as f1: print(par_all,file=f1)
 
         if to_screen:
             print(f"{name_full}.hh >>>>>")
@@ -636,6 +676,8 @@ This notifiy users that the container has been update in the new LILAK (or side 
         to_file (bool ; True) -- If True, print container to file ({path}/{name}.cc, {path}/{name}.hh) 
         print_example_comments (bool ; True) -- Print comments that helps you filling up reset of the class.
         """
+        self.init_print()
+
         self.include_headers('TClonesArray.h')
         self.include_headers('LKLogger.hh')
         self.include_headers('LKTask.hh')
@@ -744,16 +786,27 @@ Or use print_example_comments=False option to omit printing
             ]
         source_all = '\n'.join(source_list)
 
+        ############## Par ##############
+        par_all = '\n'.join(self.parfile_lines)
+
         ############## Print ##############
         name_full = os.path.join(self.path,self.name)
 
+        
         if to_file:
             print(name_full)
             with open(f'{name_full}.hh', 'w') as f1: print(header_all,file=f1)
             with open(f'{name_full}.cc', 'w') as f1: print(source_all,file=f1)
+            with open(f'{name_full}.par', 'w') as f1: print(par_all,file=f1)
 
         if to_screen:
             print(f"{name_full}.hh >>>>>")
             print(header_all)
             print(f"\n\n{name_full}.cc >>>>>")
             print(source_all)
+
+
+
+
+if __name__ == "__main__":
+    help(cwriter)

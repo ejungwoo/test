@@ -12,8 +12,8 @@ cc.print_container(to_screen=to_screen,to_file=to_file)
 
 
 ################################################################################################### 
-cc.__init__("LKVertex", "data", "This is an example description of class LKVertex")
-cc.add_private_par("std::vector<int>", "trackIDArray", "{par_name_field}.clear()", includes="<vector>")
+cc = cwriter("LKVertex", "data", "This is an example description of class LKVertex")
+cc.add_private_par("std::vector<int>", "trackIDArray", "{x}.clear()", includes="<vector>", par_persistency=False)
 cc.add_private_par("int", "trackMult", 0, "track multiplicity to create this vertex")
 cc.print_container(to_screen=to_screen,to_file=to_file, inheritance="public LKHit", includes="LKHit.hh")
 
