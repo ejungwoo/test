@@ -5,9 +5,10 @@ class fcconverter:
     [x] replace_with_arg(self, arg1, right_arg1)
     [x] configure_dimension_argument(dimension_name,dimension_argument)
     """
-    def __init__(self, file_name, tabno, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True):
+    def __init__(self, file_name, default_tab=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True):
         """
         """
+        self.module_name = ""
         self.tab = ""
         self.use_compact_line = use_compact_line
         self.use_eval = use_eval
@@ -17,30 +18,33 @@ class fcconverter:
         self.dict_dimensions = {}
         self.dict_sorted_par = {}
 
-        for i in [0,tabno]:
-            self.tab = self.tab+"    "
-        self.module_name = ""
+        self.default_tab = default_tab
+        self.do_depth = 0
+        self.last_do_tab = 0
+        self.last_do_started_at = 0
+        self.current_line = 0
+        self.count_space = 0
+
         file = open(file_name,'r')
         lines = file.read().splitlines()
-        count_line = 0
         for line in lines:
-            count_line = count_line + 1
+            self.current_line = self.current_line + 1
             line_replaced = self.replace_line(line)
 
             if print_to_screen:
                 if line_replaced.find('\n')<0:
-                    print(f"{line:80}", f"{count_line:5} >", f"{line_replaced}")
+                    print(f"{line:80}", f"{self.current_line:5} >", f"{line_replaced}")
                 else:
                     empt = ""
                     count = 0
                     for line_replaced1 in line_replaced.splitlines():
-                        if count==0:    print(f"{line:80}", f"{count_line:5} >", f"{line_replaced1}")
-                        else:           print(f"{empt:80}", f"{empt:5} >",          f"{line_replaced1}")
+                        if count==0:    print(f"{line:80}", f"{self.current_line:5} >", f"{line_replaced1}")
+                        else:           print(f"{empt:80}", f"{empt:5} >",              f"{line_replaced1}")
                         count = count + 1
 
             if print_to_file: print(line_replaced, file=file1)
 
-            if count_line==100:
+            if self.current_line==70:
                 print('\n* List of parameters')
                 for key, value in self.dict_parameters.items(): print (f"{key:10} = {value}")
                 break
@@ -60,11 +64,22 @@ class fcconverter:
             line, line_post_comment= line[:line.find("!")], line[line.find("!")+1:].strip()
 
         line_pre, line_content = line[:5].strip(), line[5:].strip()
-        arg1, right_arg1 = line_content[:line_content.find(' ')].strip(), line_content[line_content.find(' '):].strip()
+        arg1, right_arg1 = line_content[:line_content.find(' ')], line_content[line_content.find(' '):].strip()
+
+        self.count_space = 0
+        for i in range(len(arg1)):
+            if arg1[i]==0: self.count_space = self.count_space + 1 
+            else: break
+        arg1 = arg1.strip()
+
         list_line_replaced = self.replace_with_arg("", arg1, right_arg1)
 
         if len(line_post_comment)>0:
             line_post_comment = " // " + line_post_comment
+
+        self.tab = ""
+        for i in range(self.default_tab+self.do_depth):
+            self.tab = self.tab+"    "
 
         line_replaced = self.tab + f'{line_post_comment}\n{self.tab}'.join(list_line_replaced)
 
@@ -88,8 +103,25 @@ class fcconverter:
             arg1, right_arg1 = arg2, right_arg2 
 
         list_line_replaced = []
+        flag_todo = False
 
-        if arg1.find("MODULE")==0:
+        if arg1.find("DO")==0:
+            list_line_replaced.append(f"//TODO? {line_content}")
+            self.do_depth = self.do_depth + 1
+            self.last_do_started_at = self.current_line
+            self.last_do_tab = self.count_space
+
+            list_split_comma = right_arg1.split(','):
+            if list_split_comma.find("=")>0:
+                pass
+            else:
+                flag_todo = True
+            #list_split_comma_space = list_split_comma.split(' ')
+
+            #line_replaced = "for (auto i=0;
+            #list_line_replaced.append("append")
+
+        elif arg1.find("MODULE")==0:
             self.module_name = right_arg1
             list_line_replaced.append(f"#ifndef {self.module_name}")
             list_line_replaced.append(f"#define {self.module_name}")
@@ -161,24 +193,23 @@ class fcconverter:
                     list_def_parameters.append(f"{dimension_name}[{dimension_size}]")
                 list_line_replaced.append(f"{arg_type_}{', '.join(list_def_parameters)}; {dimension_comment}")
 
-
         elif arg1.find("DATA")==0:
             list_line_replaced.append(f"//TODO? {line_content}")
 
         elif arg1.find("CALL")==0:
             list_line_replaced.append(f"//TODO? {line_content}")
 
-        else: # data
+        else:
+            line_content = line_content.replace("ATAN(","TMath::Atan(")
+            line_content = line_content.replace("SQRT(","TMath::Sqrt(")
+            line_content = line_content.replace("ALog(","TMath::Log(")
+            line_content = line_content.replace("EXP(","TMath::Exp(")
+            line_content = line_content.replace("SINH(","TMath::SinH(")
+            list_line_replaced.append(f"{line_content}")
             #list_line_replaced.append(f"//TODO? {line_content}")
 
-            if line_content<0:
-            line_content.replace("ATAN","TMath::Atan")
-            line_content.replace("SQRT","TMath::Sqrt")
-            line_content.replace("ALog","TMath::Log")
-            list_line_replaced.append(f"{line_content}")
-
-            else:
-                list_line_replaced.append(f"//TODO? {line_content}")
+        if flag_todo:
+            list_line_replaced.append(f"//TODO? {line_content}")
 
         return list_line_replaced
 
