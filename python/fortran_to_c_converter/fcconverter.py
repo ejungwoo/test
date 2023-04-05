@@ -5,11 +5,10 @@ class fcconverter:
     [x] replace_with_arg(self, arg1, right_arg1)
     [x] configure_dimension_argument(dimension_name,dimension_argument)
     """
-    def __init__(self, file_name, default_tab=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True):
+    def __init__(self, file_name, default_tab_no=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True):
         """
         """
         self.module_name = ""
-        self.tab = ""
         self.use_compact_line = use_compact_line
         self.use_eval = use_eval
 
@@ -18,10 +17,8 @@ class fcconverter:
         self.dict_dimensions = {}
         self.dict_sorted_par = {}
 
-        self.default_tab = default_tab
-        self.do_depth = 0
-        self.last_do_tab = 0
-        self.last_do_started_at = 0
+        self.default_tab_no = default_tab_no
+        self.tab_no = 0
         self.current_line = 0
         self.count_space = 0
 
@@ -44,27 +41,33 @@ class fcconverter:
 
             if print_to_file: print(line_replaced, file=file1)
 
-            if self.current_line==70:
-                print('\n* List of parameters')
-                for key, value in self.dict_parameters.items(): print (f"{key:10} = {value}")
-                break
+            #if self.current_line==250:
+            #    print('\n* List of parameters')
+            #    for key, value in self.dict_parameters.items(): print (f"{key:10} = {value}")
+            #    break
 
-    def replace_line(self, line):
+    def replace_line(self, line_input):
         """
         """
         line_replaced = ""
         line_post_comment = ""
-        if line[0]=='C': # line is comment
-            line_full_comment = line[1:]
-            if len(line_full_comment)!=0: line_replaced = "//"+line_full_comment
+
+        if len(line_input)==0:
+            return ""
+        elif line_input[0]=='C': # line_input is comment
+            line_full_comment = line_input[1:].strip()
+            if len(line_full_comment)!=0: line_replaced = "/// "+line_full_comment
             else: line_replaced = ""
             return line_replaced
 
-        elif line.find("!")>0: # line contain post comment
-            line, line_post_comment= line[:line.find("!")], line[line.find("!")+1:].strip()
+        elif line_input.find("!")>0: # line_input contain post comment
+            line_input, line_post_comment= line_input[:line_input.find("!")], line_input[line_input.find("!")+1:].strip()
 
-        line_pre, line_content = line[:5].strip(), line[5:].strip()
-        arg1, right_arg1 = line_content[:line_content.find(' ')], line_content[line_content.find(' '):].strip()
+        line_pre, line_content = line_input[:5].strip(), line_input[5:].strip()
+        if line_content.find(' ')>0:
+            arg1, right_arg1 = line_content[:line_content.find(' ')], line_content[line_content.find(' '):].strip()
+        else:
+            arg1, right_arg1 = line_content, ""
 
         self.count_space = 0
         for i in range(len(arg1)):
@@ -76,12 +79,35 @@ class fcconverter:
 
         if len(line_post_comment)>0:
             line_post_comment = " // " + line_post_comment
+            #print(line_post_comment)
 
-        self.tab = ""
-        for i in range(self.default_tab+self.do_depth):
-            self.tab = self.tab+"    "
+        #hold_tab = False
+        #line1 = list_line_replaced[0].strip()
+        #if line1.find("for ")==0 or line1.find("for(")==0 or line1.find("if ")==0 or line1.find("if(")==0 or line1.find("switch")==0 or line1.find("case ")==0:
+            #hold_tab = True
+        #tab_line = ""
+        #    for i in range(self.default_tab_no+self.tab_no-1):
+        #        tab_line = tab_line + "    "
+        #else:
+        #    for i in range(self.default_tab_no+self.tab_no):
+        #        tab_line = tab_line + "    "
 
-        line_replaced = self.tab + f'{line_post_comment}\n{self.tab}'.join(list_line_replaced)
+        tab_line0 = ""
+        tab_line1 = ""
+        for i in range(self.default_tab_no+self.tab_no-1): tab_line0 = tab_line0 + "    "
+        for i in range(self.default_tab_no+self.tab_no):   tab_line1 = tab_line1 + "    "
+
+        #if len(list_line_replaced)==1:
+        #    line_replaced = f"tab_line}{list_line_replaced[0]}{line_post_comment}"
+
+        line1 = list_line_replaced[0]
+        if line1[:3]=='/1/': line_replaced = f"{tab_line0}{list_line_replaced[0][3:]}{line_post_comment}"
+        else:                line_replaced = f"{tab_line1}{list_line_replaced[0]}{line_post_comment}"
+        for line in list_line_replaced[1:]:
+            if line[:3]=='/1/': line_replaced = line_replaced + f"\n{tab_line0}{line[3:]}{line_post_comment}"
+            else:               line_replaced = line_replaced + f"\n{tab_line1}{line}{line_post_comment}"
+
+        #line_replaced = tab_line + f'{line_post_comment}\n{tab_line}'.join(list_line_replaced)
 
         return line_replaced
 
@@ -105,21 +131,65 @@ class fcconverter:
         list_line_replaced = []
         flag_todo = False
 
-        if arg1.find("DO")==0:
-            list_line_replaced.append(f"//TODO? {line_content}")
-            self.do_depth = self.do_depth + 1
-            self.last_do_started_at = self.current_line
-            self.last_do_tab = self.count_space
+        if arg1.find("IF(")==0 and arg1.find(")THEN")>0:
+            self.tab_no = self.tab_no + 1
+            if_statement = line_content[line_content.find("IF(")+2:line_content.find(")THEN")+1]
+            if_statement = if_statement.replace(".LT.","<")
+            if_statement = if_statement.replace(".LE.","<=")
+            if_statement = if_statement.replace(".GT.",">")
+            if_statement = if_statement.replace(".GE.",">=")
+            if_statement = if_statement.replace(".EQ.","==")
+            if_statement = if_statement.replace(".NE.","!=")
+            if_statement = if_statement.replace(".OR.","||")
+            if_statement = if_statement.replace(".AND.","&&")
+            if_statement = if_statement.replace(".TRUE.","true")
+            if_statement = if_statement.replace(".False.","false")
+            list_line_replaced.append(f"/1/if {if_statement} "+"{")
 
-            list_split_comma = right_arg1.split(','):
-            if list_split_comma.find("=")>0:
-                pass
+        elif arg1.find("ENDIF")==0:
+            self.tab_no = self.tab_no - 1
+            list_line_replaced.append("}")
+
+        elif arg1.find("DO")==0:
+            self.tab_no = self.tab_no + 1
+
+            list_split_comma = right_arg1.split(',')
+            if len(list_split_comma)==2 and list_split_comma[0].find("=")>0:
+                do_init = list_split_comma[0]
+                do_limit = list_split_comma[1]
+                do_var, do_init_val = do_init[:do_init.find("=")], do_init[do_init.find("=")+1:]
+                list_line_replaced.append(f"/1/for (auto {do_var}={do_init_val}; {do_var}<{do_limit}; ++{do_var}) "+"{")
             else:
                 flag_todo = True
-            #list_split_comma_space = list_split_comma.split(' ')
 
-            #line_replaced = "for (auto i=0;
-            #list_line_replaced.append("append")
+        elif arg1.find("ENDDO")==0:
+            self.tab_no = self.tab_no - 1
+            list_line_replaced.append("}")
+
+        elif arg1.find("SELECT")==0:
+            self.tab_no = self.tab_no + 1
+            switch_arg = right_arg1.replace("CASE","")
+            list_line_replaced.append(f"/1/switch {switch_arg}"+" {")
+            self.case_started = False
+
+        elif arg1.find("CASE(")==0:
+            case_arg = arg1[arg1.find('(')+1:arg1.find(')')]
+            if self.case_started:
+                list_line_replaced.append("break;")
+            else:
+                self.tab_no = self.tab_no + 1
+            list_line_replaced.append(f"/1/case {case_arg}:")
+            self.case_started = True
+
+        elif line_content.find("END SELECT")==0:
+            self.tab_no = self.tab_no - 2
+            list_line_replaced.append("}")
+
+        elif arg1.find("write")==0 or arg1.find("WRITE")==0:
+            list_value = arg1[10:].split(',') # write(*,*)
+            line_replaced = "std::cout << " + ' << " " << '.join(list_value)
+            line_replaced = line_replaced + " << std::endl;"
+            list_line_replaced.append(line_replaced)
 
         elif arg1.find("MODULE")==0:
             self.module_name = right_arg1
@@ -193,11 +263,12 @@ class fcconverter:
                     list_def_parameters.append(f"{dimension_name}[{dimension_size}]")
                 list_line_replaced.append(f"{arg_type_}{', '.join(list_def_parameters)}; {dimension_comment}")
 
-        elif arg1.find("DATA")==0:
-            list_line_replaced.append(f"//TODO? {line_content}")
-
         elif arg1.find("CALL")==0:
-            list_line_replaced.append(f"//TODO? {line_content}")
+            list_line_replaced.append(f"{right_arg1} //TODO? CALL")
+
+        elif arg1.find("DATA")==0: flag_todo = True
+        elif arg1.find("IMPLICIT")==0: flag_todo = True
+        elif arg1=="END": flag_todo = True
 
         else:
             line_content = line_content.replace("ATAN(","TMath::Atan(")
@@ -206,7 +277,6 @@ class fcconverter:
             line_content = line_content.replace("EXP(","TMath::Exp(")
             line_content = line_content.replace("SINH(","TMath::SinH(")
             list_line_replaced.append(f"{line_content}")
-            #list_line_replaced.append(f"//TODO? {line_content}")
 
         if flag_todo:
             list_line_replaced.append(f"//TODO? {line_content}")
