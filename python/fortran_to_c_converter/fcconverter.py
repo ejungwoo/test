@@ -1,115 +1,146 @@
+import os
+
 class fcconverter:
     """
     [x] __init__(self, file_name, tabno, print_to_screen=False, print_to_file=False)
-    [x] replace_line(self,line)
     [x] replace_with_arg(self, arg1, right_arg1)
     [x] configure_dimension_argument(dimension_name,dimension_argument)
+    [x] find_open_close(line_content,notation_open,closetion_open,ignore_while)
     """
-    def __init__(self, file_name, default_tab_no=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True):
+    def __init__(self, file_name, default_tab_no=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1):
         """
         """
-        self.module_name = ""
+        self.oupt_path = "source"
         self.use_compact_line = use_compact_line
         self.use_eval = use_eval
+        self.module_name = ""
+        self.print_to_file = print_to_file
 
         self.set_parameters = set()
         self.dict_parameters = {}
         self.dict_dimensions = {}
-        self.dict_sorted_par = {}
 
         self.default_tab_no = default_tab_no
         self.tab_no = 0
         self.current_line = 0
-        self.count_space = 0
+        self.count_tab_space = 0
 
+        self.file_out = None
+        self.file_main = None
+
+        if self.print_to_file:
+            os.mkdir(self.oupt_path,exist_ok=True)
+            file_name_out = os.path.join(self.oupt_path,file_name.replace('.for',".C"))
+            self.file_main = open(f'{file_name_out}', 'w')
+            self.file_out = self.file_main
+
+        i_continue = -1
         file = open(file_name,'r')
-        lines = file.read().splitlines()
-        for line in lines:
+        list_line_input = file.read().splitlines()
+        for i_line in range(len(list_line_input)):
             self.current_line = self.current_line + 1
-            line_replaced = self.replace_line(line)
 
-            if print_to_screen:
-                if line_replaced.find('\n')<0:
-                    print(f"{line:80}", f"{self.current_line:5} >", f"{line_replaced}")
+            line_input0 = list_line_input[i_line]
+            line_input = line_input0
+
+            line_replaced = ""
+            line_post_comment = ""
+            arg_type = ""
+
+            if i_continue >= i_line:
+                line_replaced = "// Added to previous line"
+
+            else:
+                i_continue = i_line
+                while True:
+                    i_continue = i_continue + 1
+                    if i_continue < len(list_line_input):
+                        line_input1 = list_line_input[i_continue]
+                        if len(line_input1)>6 and line_input1[0]==' ' and line_input1[5]!=' ':
+                            ##########################################################
+                            # add next line
+                            ##########################################################
+                            line_input1 = line_input1[6:]
+                            line_post_comment0 = ""
+                            if line_input.find('!')>0: # line_input contain post comment
+                                line_input, line_post_comment0 = line_input[:line_input.find("!")], line_input[line_input.find("!"):].strip()
+                                if len(line_post_comment0)>0:
+                                    line_post_comment0 = "  " + line_post_comment0
+                            line_input = line_input.rstrip() + line_input1.strip() + line_post_comment0
+                            ##########################################################
+                        else:
+                            i_continue = i_continue - 1
+                            break
+                    else:
+                        i_continue = i_continue -1
+                        break
+
+                char0 = line_input[0] if len(line_input)>0 else ""
+
+                if len(line_input)==0:
+                    line_replaced = ""
+
+                elif char0=='c' or char0=='C' or char0=='*' or char0=='d' or char0=='D' or char0=='!': # line_input is comment
+                    line_full_comment = line_input[1:].strip()
+                    if len(line_full_comment)!=0: line_replaced = "/// "+line_full_comment
+                    else: line_replaced = ""
+
                 else:
-                    empt = ""
+                    if line_input.find('!')>0: # line_input contain post comment
+                        line_input, line_post_comment= line_input[:line_input.find("!")], line_input[line_input.find("!")+1:].strip()
+
+                    ############################################################################
+                    line_pre, line_content = line_input[:5].strip(), line_input[5:].strip()
+                    if line_content.find(' ')>0: arg1, right_arg1 = line_content[:line_content.find(' ')], line_content[line_content.find(' '):].strip()
+                    else:                        arg1, right_arg1 = line_content, ""
+
+                    self.count_tab_space = 0
+                    for i in range(len(arg1)):
+                        if arg1[i]==0: self.count_tab_space = self.count_tab_space + 1
+                        else: break
+
+                    arg1 = arg1.strip()
+                    ############################################################################
+                    list_line_replaced, add_comment_at_last = self.replace_with_arg(arg_type, arg1, right_arg1)
+                    ############################################################################
+                    if len(add_comment_at_last)>0:
+                        line_post_comment = line_post_comment + add_comment_at_last
+                    if len(line_post_comment)>0:
+                        line_post_comment = " // " + line_post_comment
+                    ############################################################################
+
+                    tab_line0 = ""
+                    tab_line1 = ""
+                    for i in range(self.default_tab_no+self.tab_no-1): tab_line0 = tab_line0 + "    "
+                    for i in range(self.default_tab_no+self.tab_no):   tab_line1 = tab_line1 + "    "
+
+                    if len(list_line_replaced)>0:
+                        line1 = list_line_replaced[0]
+                        if line1[:3]=='/1/': line_replaced = f"{tab_line0}{list_line_replaced[0][3:]}{line_post_comment}"
+                        else:                line_replaced = f"{tab_line1}{list_line_replaced[0]}{line_post_comment}"
+
+                    for line in list_line_replaced[1:]:
+                        if line[:3]=='/1/': line_replaced = line_replaced + f"\n{tab_line0}{line[3:]}{line_post_comment}"
+                        else:               line_replaced = line_replaced + f"\n{tab_line1}{line}{line_post_comment}"
+
+            if self.print_to_screen:
+                if line_replaced.find('\n')<0:
+                    print(f"{line_input0:80}", f"{self.current_line:5} >", f"{line_replaced}")
+                else:
+                    line_empty = ""
                     count = 0
                     for line_replaced1 in line_replaced.splitlines():
-                        if count==0:    print(f"{line:80}", f"{self.current_line:5} >", f"{line_replaced1}")
-                        else:           print(f"{empt:80}", f"{empt:5} >",              f"{line_replaced1}")
+                        if count==0:    print(f"{line_input0:80}", f"{self.current_line:5} >", f"{line_replaced1}")
+                        else:           print(f"{line_empty:80}", f"{line_empty:5} >",        f"{line_replaced1}")
                         count = count + 1
 
-            if print_to_file: print(line_replaced, file=file1)
+            if self.print_to_file: print(line_replaced, file=file_out)
 
-            #if self.current_line==250:
-            #    print('\n* List of parameters')
-            #    for key, value in self.dict_parameters.items(): print (f"{key:10} = {value}")
-            #    break
-
-    def replace_line(self, line_input):
-        """
-        """
-        line_replaced = ""
-        line_post_comment = ""
-
-        if len(line_input)==0:
-            return ""
-        elif line_input[0]=='C': # line_input is comment
-            line_full_comment = line_input[1:].strip()
-            if len(line_full_comment)!=0: line_replaced = "/// "+line_full_comment
-            else: line_replaced = ""
-            return line_replaced
-
-        elif line_input.find("!")>0: # line_input contain post comment
-            line_input, line_post_comment= line_input[:line_input.find("!")], line_input[line_input.find("!")+1:].strip()
-
-        line_pre, line_content = line_input[:5].strip(), line_input[5:].strip()
-        if line_content.find(' ')>0:
-            arg1, right_arg1 = line_content[:line_content.find(' ')], line_content[line_content.find(' '):].strip()
-        else:
-            arg1, right_arg1 = line_content, ""
-
-        self.count_space = 0
-        for i in range(len(arg1)):
-            if arg1[i]==0: self.count_space = self.count_space + 1 
-            else: break
-        arg1 = arg1.strip()
-
-        list_line_replaced = self.replace_with_arg("", arg1, right_arg1)
-
-        if len(line_post_comment)>0:
-            line_post_comment = " // " + line_post_comment
-            #print(line_post_comment)
-
-        #hold_tab = False
-        #line1 = list_line_replaced[0].strip()
-        #if line1.find("for ")==0 or line1.find("for(")==0 or line1.find("if ")==0 or line1.find("if(")==0 or line1.find("switch")==0 or line1.find("case ")==0:
-            #hold_tab = True
-        #tab_line = ""
-        #    for i in range(self.default_tab_no+self.tab_no-1):
-        #        tab_line = tab_line + "    "
-        #else:
-        #    for i in range(self.default_tab_no+self.tab_no):
-        #        tab_line = tab_line + "    "
-
-        tab_line0 = ""
-        tab_line1 = ""
-        for i in range(self.default_tab_no+self.tab_no-1): tab_line0 = tab_line0 + "    "
-        for i in range(self.default_tab_no+self.tab_no):   tab_line1 = tab_line1 + "    "
-
-        #if len(list_line_replaced)==1:
-        #    line_replaced = f"tab_line}{list_line_replaced[0]}{line_post_comment}"
-
-        line1 = list_line_replaced[0]
-        if line1[:3]=='/1/': line_replaced = f"{tab_line0}{list_line_replaced[0][3:]}{line_post_comment}"
-        else:                line_replaced = f"{tab_line1}{list_line_replaced[0]}{line_post_comment}"
-        for line in list_line_replaced[1:]:
-            if line[:3]=='/1/': line_replaced = line_replaced + f"\n{tab_line0}{line[3:]}{line_post_comment}"
-            else:               line_replaced = line_replaced + f"\n{tab_line1}{line}{line_post_comment}"
-
-        #line_replaced = tab_line + f'{line_post_comment}\n{tab_line}'.join(list_line_replaced)
-
-        return line_replaced
+            if limit_line_no>0:
+                if self.current_line==limit_line_no:
+                    print('\n* List of parameters')
+                    for key, value in self.dict_parameters.items(): print (f"{key:10} = {value}")
+                    break
 
     def replace_with_arg(self, arg_type, arg1, right_arg1):
         """
@@ -119,7 +150,11 @@ class fcconverter:
         if ispace_right_arg1<0: ispace_right_arg1 = 0
         arg2, right_arg2 = right_arg1[:ispace_right_arg1].strip(), right_arg1[ispace_right_arg1:].strip()
         arg12 = arg1 + " " + arg2
+        add_comment_at_last = ""
 
+        #parameter_type = ""
+        #todo
+        #if arg_type:
         parameter_type = ""
         if   arg1.find("REAL")==0: parameter_type = "float"
         elif arg1.find("INTEGER*2")==0: parameter_type = "unsigned int"
@@ -130,6 +165,36 @@ class fcconverter:
 
         list_line_replaced = []
         flag_todo = False
+
+        line_content = line_content.replace("ATAN(","TMath::Atan(")
+        line_content = line_content.replace("SQRT(","TMath::Sqrt(")
+        line_content = line_content.replace("ALog(","TMath::Log(")
+        line_content = line_content.replace("EXP(","TMath::Exp(")
+        line_content = line_content.replace("SINH(","TMath::SinH(")
+
+        dict_sorted_dim = {}
+        for key in sorted(self.dict_dimensions, key=len, reverse=True): dict_sorted_dim[key] = self.dict_dimensions[key]
+        for key, value in dict_sorted_dim.items():
+            while True:
+                i_key = line_content.find(key+"(")
+                if i_key>=0:
+                    before_key, after_key = line_content[:i_key], line_content[i_key:]
+                    i_open, i_close = self.find_open_close(after_key)
+
+                    dim_arg = after_key[i_open+1:i_close]
+                    arg_low, arg_high = value[0], value[1]
+                    dim_arg_new = dim_arg + f"-{arg_low}"
+
+                    dim_old = after_key[:i_open] + '[' + dim_arg_new + ']'
+                    dim_new = after_key[:i_open] + '[' + dim_arg_new + ']'
+                    after_key_new = dim_new + after_key[i_close+1:]
+                    line_content = before_key + after_key_new
+
+                    if arg_low!='0':
+                        add_comment_at_last = add_comment_at_last + f" *{dim_old}->{dim_new}"
+                else:
+                    break
+
 
         if arg1.find("IF(")==0 and arg1.find(")THEN")>0:
             self.tab_no = self.tab_no + 1
@@ -186,20 +251,29 @@ class fcconverter:
             list_line_replaced.append("}")
 
         elif arg1.find("write")==0 or arg1.find("WRITE")==0:
-            list_value = arg1[10:].split(',') # write(*,*)
+            i_open, i_close = self.find_open_close(line_content)
+            list_value = line_content[i_close+1:].split(',')
+
             line_replaced = "std::cout << " + ' << " " << '.join(list_value)
+            line_replaced = line_replaced.replace("'",'"')
             line_replaced = line_replaced + " << std::endl;"
+            line_replaced = line_replaced + " // " + line_content[:i_close+1]
             list_line_replaced.append(line_replaced)
 
         elif arg1.find("MODULE")==0:
             self.module_name = right_arg1
             list_line_replaced.append(f"#ifndef {self.module_name}")
             list_line_replaced.append(f"#define {self.module_name}")
-            print(f'openning {self.module_name}.h')
-            file1 = open(f'{self.module_name}.h', 'w')
+
+            if self.print_to_file:
+                file_name_out = os.path.join(self.oupt_path,self.module_name+".h")
+                print(f'openning {file_name_out}')
+                self.file_out = open(f'{file_name_out}', 'w')
 
         elif line_content.find(f"END MODULE {self.module_name}")==0:
-            list_line_replaced.append("#endif")
+            #list_line_replaced.append("#endif")
+            if self.print_to_file: print("#endif", file=file_out) # todo
+            self.module_name = ""
 
         elif len(parameter_type)>0:
             if arg1[len(arg1)-1]==',':
@@ -231,36 +305,39 @@ class fcconverter:
                     self.set_parameters.add(parameter_name)
 
                 if self.use_eval:
-                    self.dict_sorted_par = {}
-                    for key in sorted(self.dict_parameters, key=len, reverse=True): self.dict_sorted_par[key] = self.dict_parameters[key]
-                    for key, value in self.dict_sorted_par.items(): parameter_value = parameter_value.replace(key,value)
+                    dict_sorted_par = {}
+                    for key in sorted(self.dict_parameters, key=len, reverse=True): dict_sorted_par[key] = self.dict_parameters[key]
+                    for key, value in dict_sorted_par.items(): parameter_value = parameter_value.replace(key,value)
 
                 self.dict_parameters[parameter_name]=parameter_value
 
             list_line_replaced = list_init_parameters
 
         elif arg1.find("DIMENSION")==0:
-            if len(arg_type)==0: arg_type_ = ""
+            if len(arg_type)<2: arg_type_ = ""
             else: arg_type_ = f"{arg_type:13}"
 
             list_def_parameters = []
+
             if len(arg1)>9 and arg1[9]=="(" and arg2=="::": # this line is "type :: variables
-                dimension_argument = arg1[10:-1]
+                dimension_arguments = arg1[10:-1]
                 list_dimension_names = right_arg2.split(',')
                 for dimension_name in list_dimension_names:
                     dimension_name = dimension_name.strip()
-                    dimension_size,dimension_comment = self.configure_dimension_argument(dimension_name,dimension_argument)
+                    dimension_size,dimension_comment = self.configure_dimension_argument(dimension_name,dimension_arguments)
                     if len(dimension_comment)>0: dimension_comment = " //TODO? " + dimension_comment
                     list_line_replaced.append(f"{arg_type_}{dimension_name}[{dimension_size}];{dimension_comment}")
 
             else:
-                pass
-                for dimension in right_arg1.split(','):
-                    dimension_name = dimension[:right_arg1.find("(")]
-                    dimension_argument = dimension[right_arg1.find("(")+1:right_arg1.rfind(")")]
-                    dimension_size,dimension_comment = self.configure_dimension_argument(dimension_name,dimension_argument)
+                right_arg1 = right_arg1.replace('),' ,')^')
+                right_arg1 = right_arg1.replace(') ,',')^')
+                for dimension_par in right_arg1.split('^'):
+                    dimension_name = dimension_par[:dimension_par.find("(")]
+                    dimension_arguments = dimension_par[dimension_par.find("(")+1:dimension_par.rfind(")")]
+                    dimension_size,dimension_comment = self.configure_dimension_argument(dimension_name,dimension_arguments)
                     if len(dimension_comment)>0: dimension_comment = " //TODO? " + dimension_comment
                     list_def_parameters.append(f"{dimension_name}[{dimension_size}]")
+
                 list_line_replaced.append(f"{arg_type_}{', '.join(list_def_parameters)}; {dimension_comment}")
 
         elif arg1.find("CALL")==0:
@@ -271,36 +348,32 @@ class fcconverter:
         elif arg1=="END": flag_todo = True
 
         else:
-            line_content = line_content.replace("ATAN(","TMath::Atan(")
-            line_content = line_content.replace("SQRT(","TMath::Sqrt(")
-            line_content = line_content.replace("ALog(","TMath::Log(")
-            line_content = line_content.replace("EXP(","TMath::Exp(")
-            line_content = line_content.replace("SINH(","TMath::SinH(")
             list_line_replaced.append(f"{line_content}")
 
         if flag_todo:
             list_line_replaced.append(f"//TODO? {line_content}")
 
-        return list_line_replaced
+        return list_line_replaced, add_comment_at_last
 
-    def configure_dimension_argument(self,dimension_name,dimension_argument):
+    def configure_dimension_argument(self,dimension_name,dimension_arguments):
         dimension_comment = ""
         list_arg_range = []
         list_arg_diff = []
-        for arg in dimension_argument.split(','):
+        for arg in dimension_arguments.split(','):
             if arg.find(':')>0: arg_low, arg_high = "("+arg[:arg.find(':')]+")", "("+arg[arg.find(':')+1:]+")"
             else:               arg_low, arg_high = "0", "("+arg+")"
-            list_arg_diff.append(arg_high + "-" + arg_low)
-            list_arg_range.append([arg_low,arg_high])
+            list_arg_diff.append(arg_high + "-" + arg_low + "+1")
+            list_arg_range.append(arg_low)
+            list_arg_range.append(arg_high)
 
         self.dict_dimensions[dimension_name] = list_arg_range
 
         if self.use_eval:
             list_arg_diff2 = []
             for arg_diff in list_arg_diff:
-                self.dict_sorted_par = {}
-                for key in sorted(self.dict_parameters, key=len, reverse=True): self.dict_sorted_par[key] = self.dict_parameters[key]
-                for key, value in self.dict_sorted_par.items(): arg_diff = arg_diff.replace(key,value)
+                dict_sorted_par = {}
+                for key in sorted(self.dict_parameters, key=len, reverse=True): dict_sorted_par[key] = self.dict_parameters[key]
+                for key, value in dict_sorted_par.items(): arg_diff = arg_diff.replace(key,value)
                 arg_diff = eval(arg_diff)
                 ##############################
                 arg_diff2 = int(arg_diff)
@@ -311,9 +384,39 @@ class fcconverter:
                 list_arg_diff2.append(str(arg_diff))
             list_arg_diff = list_arg_diff2
 
-        dimension_size = ','.join(list_arg_diff)
+        #dimension_size = ','.join(list_arg_diff)
+        dimension_size = ']['.join(list_arg_diff)
 
         return dimension_size, dimension_comment
+
+    def find_open_close(self,line_content,notation_open="(",notation_close=")",ignore_while="'"):
+        found_open = False
+        ignore_open = False
+        count_inner_open = 0
+        i_open = -1
+        count_char = -1
+        for char in line_content:
+            count_char = count_char + 1
+            if char==ignore_while:
+                if ignore_open:
+                    ignore_open = False
+                else:
+                    ignore_open = True
+            if char==notation_open:
+                if ignore_open == False:
+                    if found_open:
+                        count_inner_open = count_inner_open + 1
+                    else:
+                        found_open = True
+                        i_open = count_char
+            if char==notation_close:
+                if ignore_open == False:
+                    if count_inner_open==0:
+                        return i_open, count_char
+                    else:
+                        count_inner_open = count_inner_open - 1
+        return i_open, count_char
+
 
 if __name__ == "__main__":
     help(fcconverter)
