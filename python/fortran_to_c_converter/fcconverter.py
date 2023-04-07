@@ -15,6 +15,7 @@ class fcconverter:
         self.use_eval = use_eval
         self.module_name = ""
         self.print_to_file = print_to_file
+        self.print_to_screen = print_to_screen
 
         self.set_parameters = set()
         self.dict_parameters = {}
@@ -111,8 +112,11 @@ class fcconverter:
 
                     tab_line0 = ""
                     tab_line1 = ""
-                    for i in range(self.default_tab_no+self.tab_no-1): tab_line0 = tab_line0 + "    "
-                    for i in range(self.default_tab_no+self.tab_no):   tab_line1 = tab_line1 + "    "
+                    r0 = self.default_tab_no+self.tab_no-1
+                    r1 = self.default_tab_no+self.tab_no
+                    if r0 < 0: r0 = 0
+                    for i in range(r0): tab_line0 = tab_line0 + "    "
+                    for i in range(r1): tab_line1 = tab_line1 + "    "
 
                     if len(list_line_replaced)>0:
                         line1 = list_line_replaced[0]
@@ -152,13 +156,16 @@ class fcconverter:
         arg12 = arg1 + " " + arg2
         add_comment_at_last = ""
 
-        #parameter_type = ""
-        #todo
-        #if arg_type:
         parameter_type = ""
         if   arg1.find("REAL")==0: parameter_type = "float"
         elif arg1.find("INTEGER*2")==0: parameter_type = "unsigned int"
         elif arg1.find("INTEGER")==0: parameter_type = "int"
+        elif arg1.find("CHARACTER*")==0:
+            #i_comma = arg1.find(",")
+            #if i_comma<0:
+            #size_charactor = arg1[arg1.find("*")+1:]
+            #size_charactor = arg1[arg1.find("*")+1:arg1.find(",")]
+            parameter_type = "TString"
         elif arg12.find("DOUBLE PRECISION")==0:
             parameter_type = "double"
             arg1, right_arg1 = arg2, right_arg2 
@@ -262,17 +269,20 @@ class fcconverter:
 
         elif arg1.find("MODULE")==0:
             self.module_name = right_arg1
-            list_line_replaced.append(f"#ifndef {self.module_name}")
-            list_line_replaced.append(f"#define {self.module_name}")
+            file_name_out = os.path.join(self.oupt_path,self.module_name+".h")
+            list_line_replaced.append(f"/1/#ifndef {self.module_name} // {file_name_out}")
+            list_line_replaced.append(f"/1/#define {self.module_name}")
 
             if self.print_to_file:
-                file_name_out = os.path.join(self.oupt_path,self.module_name+".h")
                 print(f'openning {file_name_out}')
                 self.file_out = open(f'{file_name_out}', 'w')
 
         elif line_content.find(f"END MODULE {self.module_name}")==0:
-            #list_line_replaced.append("#endif")
-            if self.print_to_file: print("#endif", file=file_out) # todo
+            if self.print_to_file:
+                print("#endif", file=file_out) # todo
+                self.file_out = self.file_main
+            if self.print_to_screen:
+                list_line_replaced.append("/1/#endif")
             self.module_name = ""
 
         elif len(parameter_type)>0:
@@ -314,7 +324,7 @@ class fcconverter:
             list_line_replaced = list_init_parameters
 
         elif arg1.find("DIMENSION")==0:
-            if len(arg_type)<2: arg_type_ = ""
+            if len(arg_type)<2: arg_type_ = "double"
             else: arg_type_ = f"{arg_type:13}"
 
             list_def_parameters = []
@@ -344,6 +354,8 @@ class fcconverter:
             list_line_replaced.append(f"{right_arg1} //TODO? CALL")
 
         elif arg1.find("DATA")==0: flag_todo = True
+        elif arg1.find("OPEN")==0: flag_todo = True
+        elif arg1.find("CLOSE")==0: flag_todo = True
         elif arg1.find("IMPLICIT")==0: flag_todo = True
         elif arg1=="END": flag_todo = True
 
@@ -362,7 +374,8 @@ class fcconverter:
         for arg in dimension_arguments.split(','):
             if arg.find(':')>0: arg_low, arg_high = "("+arg[:arg.find(':')]+")", "("+arg[arg.find(':')+1:]+")"
             else:               arg_low, arg_high = "0", "("+arg+")"
-            list_arg_diff.append(arg_high + "-" + arg_low + "+1")
+            #list_arg_diff.append(arg_high + "-" + arg_low + "+1")
+            list_arg_diff.append(arg_high + "-" + arg_low)
             list_arg_range.append(arg_low)
             list_arg_range.append(arg_high)
 
