@@ -5,7 +5,8 @@ class fcconverter:
     [x] __init__(self, file_name, tabno, print_to_screen=False, print_to_file=False)
     [x] replace_with_arg(self, arg1, right_arg1)
     [x] configure_dimension_argument(dimension_name,dimension_argument)
-    [x] find_open_close(line_content,notation_open,closetion_open,ignore_while)
+    [x] find_open_close(line_content,notation_open,closetion_open,ignore_while,before_name)
+    [] cofig_fortran_variables
     """
     def __init__(self, file_name, default_tab_no=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1):
         """
@@ -186,7 +187,7 @@ class fcconverter:
                 i_key = line_content.find(key+"(")
                 if i_key>=0:
                     before_key, after_key = line_content[:i_key], line_content[i_key:]
-                    i_open, i_close = self.find_open_close(after_key)
+                    i_name, i_open, i_close = self.find_open_close(after_key)
 
                     dim_arg = after_key[i_open+1:i_close]
                     arg_low, arg_high = value[0], value[1]
@@ -258,7 +259,7 @@ class fcconverter:
             list_line_replaced.append("}")
 
         elif arg1.find("write")==0 or arg1.find("WRITE")==0:
-            i_open, i_close = self.find_open_close(line_content)
+            i_name, i_open, i_close = self.find_open_close(line_content)
             list_value = line_content[i_close+1:].split(',')
 
             line_replaced = "std::cout << " + ' << " " << '.join(list_value)
@@ -323,6 +324,21 @@ class fcconverter:
 
             list_line_replaced = list_init_parameters
 
+
+        elif arg1.find("DATA")==0:
+            right_arg1
+            i_name, i_open, i_close = self.find_open_close(right_arg1,notation_open="/",notation_close="/",ignore_while="'")
+            par_name = right_arg1[i_name:i_open]
+            par_values = right_arg1[i_open+1:i_close]
+            if par_values.find(','):
+                count_values = 0
+                for value in par_values.split(','):
+                    value = cofig_fortran_variables(value)
+                    list_line_replaced.append(f"{par_name}[{count_values}] = {value}")
+                    count_values = count_values + 1
+            else:
+                list_line_replaced(f"{par_name}={par_values}")
+
         elif arg1.find("DIMENSION")==0:
             if len(arg_type)<2: arg_type_ = "double"
             else: arg_type_ = f"{arg_type:13}"
@@ -353,7 +369,7 @@ class fcconverter:
         elif arg1.find("CALL")==0:
             list_line_replaced.append(f"{right_arg1} //TODO? CALL")
 
-        elif arg1.find("DATA")==0: flag_todo = True
+        elif arg1.find("READ")==0: flag_todo = True
         elif arg1.find("OPEN")==0: flag_todo = True
         elif arg1.find("CLOSE")==0: flag_todo = True
         elif arg1.find("IMPLICIT")==0: flag_todo = True
@@ -402,34 +418,54 @@ class fcconverter:
 
         return dimension_size, dimension_comment
 
-    def find_open_close(self,line_content,notation_open="(",notation_close=")",ignore_while="'"):
+    def find_open_close(self,line_content,notation_open="(",notation_close=")",ignore_while="'",before_name=[' ','=','(',',','*']):
         found_open = False
         ignore_open = False
         count_inner_open = 0
+        i_name = 0
         i_open = -1
+        i_close = -1
         count_char = -1
+
         for char in line_content:
+
+            if found_open==False:
+                if char in before_name:
+                    i_name = count_char+1
+
             count_char = count_char + 1
             if char==ignore_while:
                 if ignore_open:
                     ignore_open = False
                 else:
                     ignore_open = True
-            if char==notation_open:
-                if ignore_open == False:
+
+            if ignore_open == False:
+
+                if char==notation_open:
                     if found_open:
-                        count_inner_open = count_inner_open + 1
+                        if notation_open!=notation_close:
+                            count_inner_open = count_inner_open + 1
                     else:
                         found_open = True
                         i_open = count_char
-            if char==notation_close:
-                if ignore_open == False:
+
+                if char==notation_close:
                     if count_inner_open==0:
-                        return i_open, count_char
+                        if count_char==i_open:
+                            pass
+                        else:
+                            i_close = count_char
+                            break
                     else:
                         count_inner_open = count_inner_open - 1
-        return i_open, count_char
 
+        i_close = count_char
+        return i_name, i_open, i_close
+
+
+    def cofig_fortran_variables(self, variable):
+        pass
 
 if __name__ == "__main__":
     help(fcconverter)
