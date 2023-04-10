@@ -6,7 +6,7 @@ class fcconverter:
     [x] replace_with_arg(self, arg1, right_arg1)
     [x] configure_dimension_argument(dimension_name,dimension_argument)
     [x] find_open_close(line_content,notation_open,closetion_open,ignore_while,before_name)
-    [] cofig_fortran_variables
+    [x] config_fortran_variables(variable)
     """
     def __init__(self, file_name, default_tab_no=1, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1):
         """
@@ -63,12 +63,14 @@ class fcconverter:
                             # add next line
                             ##########################################################
                             line_input1 = line_input1[6:]
-                            line_post_comment0 = ""
+                            line_post_comment1 = ""
                             if line_input.find('!')>0: # line_input contain post comment
-                                line_input, line_post_comment0 = line_input[:line_input.find("!")], line_input[line_input.find("!"):].strip()
-                                if len(line_post_comment0)>0:
-                                    line_post_comment0 = "  " + line_post_comment0
-                            line_input = line_input.rstrip() + line_input1.strip() + line_post_comment0
+                                line_input, line_post_comment1 = line_input[:line_input.find("!")], line_input[line_input.find("!"):].strip()
+                                #line_input, line_post_comment1 = line_input[:line_input.find("!")], line_input[line_input.find("!")+1:].strip()
+                                if len(line_post_comment1)>0:
+                                    line_post_comment1 = "  " + line_post_comment1
+                                    #line_post_comment1 = " // " + line_post_comment1
+                            line_input = line_input.rstrip() + line_input1.strip() + line_post_comment1
                             ##########################################################
                         else:
                             i_continue = i_continue - 1
@@ -174,11 +176,7 @@ class fcconverter:
         list_line_replaced = []
         flag_todo = False
 
-        line_content = line_content.replace("ATAN(","TMath::Atan(")
-        line_content = line_content.replace("SQRT(","TMath::Sqrt(")
-        line_content = line_content.replace("ALog(","TMath::Log(")
-        line_content = line_content.replace("EXP(","TMath::Exp(")
-        line_content = line_content.replace("SINH(","TMath::SinH(")
+        line_content = self.config_fortran_variables(line_content)
 
         dict_sorted_dim = {}
         for key in sorted(self.dict_dimensions, key=len, reverse=True): dict_sorted_dim[key] = self.dict_dimensions[key]
@@ -333,7 +331,7 @@ class fcconverter:
             if par_values.find(','):
                 count_values = 0
                 for value in par_values.split(','):
-                    value = cofig_fortran_variables(value)
+                    value = self.config_fortran_variables(value)
                     list_line_replaced.append(f"{par_name}[{count_values}] = {value}")
                     count_values = count_values + 1
             else:
@@ -464,8 +462,19 @@ class fcconverter:
         return i_name, i_open, i_close
 
 
-    def cofig_fortran_variables(self, variable):
-        pass
+    def config_fortran_variables(self, variable):
+        variable = variable.replace(".TRUE.","true")
+        variable = variable.replace(".False.","false")
+
+        variable = variable.replace("'",'"')
+
+        variable = variable.replace("ATAN(","TMath::Atan(")
+        variable = variable.replace("SQRT(","TMath::Sqrt(")
+        variable = variable.replace("ALog(","TMath::Log(")
+        variable = variable.replace("EXP(","TMath::Exp(")
+        variable = variable.replace("SINH(","TMath::SinH(")
+
+        return variable
 
 if __name__ == "__main__":
     help(fcconverter)
