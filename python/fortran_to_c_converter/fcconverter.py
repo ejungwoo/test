@@ -8,10 +8,11 @@ class fcconverter:
     [x] find_open_close(line_content,notation_open,closetion_open,ignore_while,before_name)
     [x] config_fortran_variables(variable)
     """
-    def __init__(self, file_name, default_tab_no=0, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1, use_module_file = True):
+    def __init__(self, file_name, default_tab_no=0, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1, use_module_file = False):
         """
         """
         self.oupt_path = "source"
+        self.file_name = file_name
         self.use_compact_line = use_compact_line
         self.use_eval = use_eval
         self.module_name = ""
@@ -43,11 +44,11 @@ class fcconverter:
 
         if self.print_to_file:
             os.makedirs(self.oupt_path,exist_ok=True)
-            self.file_name_out = os.path.join(self.oupt_path,file_name.replace('.for',".C"))
+            self.file_name_out = os.path.join(self.oupt_path,self.file_name.replace('.for',".C"))
             self.file_main = open(f'{self.file_name_out}', 'w')
             self.file_out = self.file_main
             if self.use_module_file:
-                self.file_module_name_out = os.path.join(self.oupt_path,file_name.replace('.for',"_modules.h"))
+                self.file_module_name_out = os.path.join(self.oupt_path,self.file_name.replace('.for',"_modules.h"))
                 self.file_module = open(f'{self.file_module_name_out}', 'w')
 
 
@@ -153,7 +154,8 @@ class fcconverter:
                                 else:           print(f"{line_empty:80}", f"{line_empty:5} >",        f"{line_replaced1}")
                                 count = count + 1
 
-                    if self.print_to_file: print(line_replaced, file=self.file_out)
+                    if self.print_to_file:
+                        print(line_replaced, file=self.file_out)
 
                 if self.switch_to_main_file_after:
                     self.file_out = self.file_main
@@ -342,18 +344,19 @@ class fcconverter:
             line_type = "module"
             self.line_is_module = True
             self.module_name = right_arg1
-            file_name_out = os.path.join(self.oupt_path,self.module_name+".h")
+            file_name_module = os.path.join(self.oupt_path,self.file_name.replace('.for',f"_{self.module_name}.h"))
             if self.use_module_file:
-                file_name_out = self.file_module_name_out
+                file_name_module = self.file_module_name_out
 
             if self.print_to_file:
                 if self.use_module_file:
                     self.file_out = self.file_module
                 else:
-                    print(f'openning {file_name_out}')
-                    self.file_out = open(f'{file_name_out}', 'w')
+                    print(f'openning {file_name_module}')
+                    self.file_out = open(f'{file_name_module}', 'w')
+                    print("???????", file=self.file_out)
 
-            list_line_replaced.append(f"<<#ifndef {self.module_name} // {file_name_out}")
+            list_line_replaced.append(f"<<#ifndef {self.module_name} // {file_name_module}")
             list_line_replaced.append(f"<<#define {self.module_name}")
 
         elif line_content.find(f"END MODULE {self.module_name}")==0:
