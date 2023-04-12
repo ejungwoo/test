@@ -25,6 +25,7 @@ class fcconverter:
         self.tab_no = 0
         self.detab_now = 0
         self.tab_after = False
+        self.tab_just_this_line = False
         self.current_line = 0
         self.tab_sign = ""
 
@@ -131,6 +132,11 @@ class fcconverter:
                     else:
                         self.tab_sign = f"[{self.tab_no}]"
 
+
+                    if self.tab_just_this_line:
+                        self.tab_no = self.tab_no + 1
+                        self.tab_sign = f"[{self.tab_no}(+-)]"
+
                     tab_line0 = ""
                     tab_line1 = ""
                     r0 = self.default_tab_no + self.tab_no-1
@@ -139,6 +145,9 @@ class fcconverter:
                     #print(">>>>>>>",r0,r1)
                     for i in range(r0): tab_line0 = tab_line0 + "    "
                     for i in range(r1): tab_line1 = tab_line1 + "    "
+
+                    if self.tab_just_this_line:
+                        self.tab_no = self.tab_no - 1
 
                     if self.tab_after:
                         #self.tab_no = self.tab_no + 1
@@ -210,9 +219,9 @@ class fcconverter:
             list_line_replaced.append(f"/// {line_post_comment}")
 
         #########
-        line_pre = line_input[:5].strip()
+        line_header = line_input[:6].strip()
         #########
-        line_content = line_input[5:].strip()
+        line_content = line_input[6:].strip()
         #########
         arg1 = line_content[:line_content.find(' ')].strip() if line_content.find(' ')>0 else line_content
         #########
@@ -229,7 +238,7 @@ class fcconverter:
         #########
         arg12 = arg1 + " " + arg2
         #########
-        char0 = line_pre[0] if len(line_pre)>0 else ""
+        char0 = line_header[0] if len(line_header)>0 else ""
         #########
 
         ispace_right_arg2 = right_arg2.find(' ')
@@ -274,6 +283,9 @@ class fcconverter:
 
         line_content = self.config_fortran_line(line_content)
 
+        if line_header=="AFT_IF":
+            self.tab_just_this_line
+
         if char0=='c' or char0=='C' or char0=='*' or char0=='d' or char0=='D' or char0=='!': # line_content is comment
             self.set_and_debug_line_type(line_content,"Comment")
             line_full_comment = line_input[1:].strip()
@@ -281,19 +293,17 @@ class fcconverter:
             else: line_replaced = ""
 
         elif arg1.find("IF(")==0:
+            self.set_and_debug_line_type(line_content,"if")
+            i_name, i_open, i_close = self.find_open_close(line_content)
+            if_statement = line_content[i_open:i_close+1]
+            if_statement = self.config_fortran_line(if_statement)
             if arg1.find("THEN")>0:
-                self.set_and_debug_line_type(line_content,"if then")
                 self.tab_after = True
-                if_statement = line_content[line_content.find("IF(")+2:line_content.find(")THEN")+1]
-                if_statement = self.config_fortran_line(if_statement)
                 list_line_replaced.append(f"if {if_statement} "+"{")
-            if arg1.find("GOTO")>0:
-                self.set_and_debug_line_type(line_content,"if goto")
-                self.tab_after = True
-                if_statement = line_content[line_content.find("IF(")+2:line_content.find(")THEN")+1]
-                if_statement = self.config_fortran_line(if_statement)
-                list_line_replaced.append(f"if {if_statement} "+"{"+f" //{line_content}")
-                goto = line_content[arg1.find("GOTO"):]
+            else:
+                list_line_replaced.append(f"if {if_statement}")
+                line_input2 = "AFT_IF" + line_content[i_close+1:]
+                list_line_replaced.extend(self.replace_with_arg(line_input2))
 
         elif arg1.find("ELSEIF(")==0 and arg1.find(")THEN")>0:
             self.set_and_debug_line_type(line_content,"else if")
@@ -509,7 +519,7 @@ class fcconverter:
             i_name, i_open, i_close = self.find_open_close(right_arg1,notation_open="/",notation_close="/",ignore_while="'")
             par_name = right_arg1[i_name:i_open]
             par_values = right_arg1[i_open+1:i_close]
-            if par_values.find(','):
+            if par_values.find(',')>=0:
                 count_values = 0
                 list_values = self.split2(par_values)
                 for value in list_values:
@@ -517,15 +527,36 @@ class fcconverter:
                     list_line_replaced.append(f"{par_name}[{count_values}] = {value}")
                     count_values = count_values + 1
             else:
-                list_line_replaced(f"{par_name}={par_values}")
+                list_line_replaced.append(f"{par_name}={par_values}")
+
+        elif arg1.find("OPEN")==0:
+            self.set_and_debug_line_type(line_content,"open file")
+            i_name, i_open, i_close = self.find_open_close(arg1)
+            open_args = arg1[i_open+1:i_close]
+            list_open_arg = self.split2(open_args)
+            if list_open_arg[0].find("=")>0:
+                open_file_id = list_open_arg[0].split("=")[1]
+            else:
+                open_file_id = list_open_arg[0]
+            for open_arg in list_open_arg:
+                open_and_write = False
+                if open_arg.find("FILE")>=0:
+                    open_file_name = open_arg.split("=")[1]
+                if open_arg.find("WRITE")>0:
+                    open_and_write = True
+            if open_and_write:
+                list_line_replaced.append(f"ofstream file_{open_file_id}({open_file_name});")
+            else:
+                list_line_replaced.append(f"ifstream file_{open_file_id}({open_file_name});")
 
         #elif arg1.find("CALL")==0:
         #    self.set_and_debug_line_type(line_content,"function")
         #    list_line_replaced.append(f"{right_arg1} //TODO? CALL")
 
+        elif arg1.find("WRITE")==0: flag_todo = True
+        elif arg1.find("GOTO")==0: flag_todo = True
         elif arg1.find("CALL")==0: flag_todo = True
         elif arg1.find("READ")==0: flag_todo = True
-        elif arg1.find("OPEN")==0: flag_todo = True
         elif arg1.find("CLOSE")==0: flag_todo = True
         elif arg1.find("IMPLICIT")==0: flag_todo = True
         elif arg1=="END": flag_todo = True
