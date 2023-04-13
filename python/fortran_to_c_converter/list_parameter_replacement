@@ -1,0 +1,43 @@
+NTRY  num_tries
+ITRY  i_try
+
+NA num_bins
+XM x_max
+DX bin_width
+DN pdf_true_per_binevent
+
+XAP x_corrected
+
+DN1 hist_x_norm 
+DNXT hist_x_true  
+DNX hist_x_centered 
+DNXR hist_x_centered2 
+DNXV hist_x_something
+PFO hist_smeared            # array to store the Gaussian function used for smearing
+NPART num_particles  
+NTRY num_events              # number of events to simulate
+XMAX x_max                 # maximum value of the x-axis
+SIGK sigma2                  # square of the standard deviation of the PDF of particle positions
+
+XAK x_mean_squared_eman                 # squared average value of the average position relative to the true position
+XAKS x_stddev                 # squared estimate of the error in the average position
+ISEED seed                 # seed used for generating random numbers
+LFLAG flag_ouflow                 # logical flag to handle underflow and overflow exceptions
+FAC norm_factor                 # normalization factor used for the true PDF
+FACX norm_factor_norm                # normalization factor used for the smeared PDF
+SIGXK sig2_norm                # squared width of the smeared PDF of particle positions centered at the average position
+SIGX sig_norm                # squared width of the smeared PDF of particle positions centered at the average position
+PFOT pfot                 # total probability of the smeared PDF
+
+XPI x_array
+NIT num_deconvolution
+XA x_mean
+XKA x_squared_mean
+
+DNTH hist_renormalized
+IT i_iterate
+IP i_particle
+IA i_bin
+JA j_bin
+IAS i_bin2
+ALA val_0p01

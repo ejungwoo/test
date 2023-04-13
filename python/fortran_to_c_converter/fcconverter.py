@@ -11,7 +11,7 @@ class fcconverter:
     [x] config_types(func_arg)
     [x] set_and_debug_line_type(line_content,line_type):
     """
-    def __init__(self, file_name, default_tab_no=0, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1, use_module_file = False):
+    def __init__(self, file_name, default_tab_no=0, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1, use_module_file = False, par_file=""):
         """
         """
         self.oupt_path = "source"
@@ -44,6 +44,7 @@ class fcconverter:
         self.dict_par_value = {}
         self.dict_par_type = {}
         self.dict_dimensions = {}
+        self.dict_par_replace = {}
 
         ################################# file
         self.file_out = None
@@ -51,6 +52,21 @@ class fcconverter:
         self.file_module = None
         self.file_name_out = ""
         self.file_name_out_module = ""
+
+        if len(par_file)!=0:
+            file_par_replace = open(par_file)
+            list_par_replace = file_par_replace.read().splitlines()
+            dict_par_replace = {}
+            for line in list_par_replace:
+                i_comment = line.find("#") if line.find("#")>0 else len(line)
+                line = line[:i_comment].strip()
+                if line == "":
+                    continue
+                name_old = line.split()[0]
+                name_new = line.split()[1]
+                dict_par_replace[name_old] = name_new
+            for key in sorted(dict_par_replace, key=len, reverse=True):
+                self.dict_par_replace[key] = dict_par_replace[key]
 
         self.file_name0 = self.file_name
         if self.file_name0.find("/")>0:
@@ -124,6 +140,7 @@ class fcconverter:
                     ############################################################################
                     list_line_replaced = self.replace_with_arg(line_input)
                     ############################################################################
+
                     count_comment = 0
                     for comment in list_line_post_comment:
                         list_line_replaced.insert(count_comment,comment)
@@ -153,7 +170,6 @@ class fcconverter:
                     r0 = self.default_tab_no + self.tab_no-1
                     r1 = self.default_tab_no + self.tab_no
                     if r0 < 0: r0 = 0
-                    #print(">>>>>>>",r0,r1)
                     for i in range(r0): tab_line0 = tab_line0 + "    "
                     for i in range(r1): tab_line1 = tab_line1 + "    "
 
@@ -174,6 +190,8 @@ class fcconverter:
                         if line[:2]=='<<': line_replaced = line_replaced + f"\n{tab_line0}{line[2:]}"
                         else:              line_replaced = line_replaced + f"\n{tab_line1}{line}"
 
+                    for name_old, name_new in self.dict_par_replace.items():
+                        line_replaced = line_replaced.replace(name_old,name_new)
 
                 if self.start_module_now:
                     self.line_is_module = True
@@ -193,7 +211,6 @@ class fcconverter:
                 if skip_print==False:
                     if self.print_to_screen:
                         if line_replaced.find('\n')<0:
-                            #print(f"{line_input0:80}", f"{self.current_line:5} >", f"{line_replaced}")
                             joint = f"{self.current_line} {self.tab_sign}"
                             print(f"{line_input0:80}", f"{joint:12} >", f"{line_replaced}")
                         else:
@@ -308,8 +325,9 @@ class fcconverter:
         if char0=='c' or char0=='C' or char0=='*' or char0=='d' or char0=='D' or char0=='!': # line_content is comment
             self.set_and_debug_line_type(line_content,"Comment")
             line_full_comment = line_input[1:].strip()
-            if len(line_full_comment)!=0: list_line_replaced.append("/// "+line_full_comment)
-            else: list_line_replaced.append("/// "+line_full_comment)
+            if len(line_full_comment)!=0: list_line_replaced.append(f"///({char0}) "+line_full_comment)
+            #else: list_line_replaced.append("/// "+line_full_comment)
+            else: list_line_replaced.append("")
 
         elif arg1.find("IF(")==0:
             self.set_and_debug_line_type(line_content,"if")
@@ -722,6 +740,10 @@ class fcconverter:
         content = content.replace(".OR.","||")
         content = content.replace(".AND.","&&")
 
+        content = content.replace("1D0","1E0")
+        content = content.replace("0D0","0E0")
+
+
         #content = content + ';'
 
         dict_sorted_dim = {}
@@ -737,11 +759,13 @@ class fcconverter:
 
                     dim_arg = after_key[i_open+1:i_close]
                     arg_low, arg_high = value[0], value[1]
-                    if arg_low<0:
-                        arg_low = arg_low[:-1].replace("-(","")
-                        dim_arg_new = dim_arg + f"+{arg_low}"
-                    if arg_low>0:
-                        dim_arg_new = dim_arg + f"-{arg_low}"
+                    dim_arg_new = dim_arg
+                    if arg_low!='0':
+                        if arg_low.find("-")>=0:
+                            arg_low = arg_low[:-1].replace("(-","")
+                            dim_arg_new = dim_arg + f"+{arg_low}"
+                        else:
+                            dim_arg_new = dim_arg + f"-{arg_low}"
 
                     dim_old = after_key[:i_open] + '[' + dim_arg + ']'
                     dim_new = after_key[:i_open] + '[' + dim_arg_new + ']'
@@ -776,7 +800,7 @@ class fcconverter:
         return func_arg
 
     def set_and_debug_line_type(self,line_content,line_type):
-        print("[set_and_debug_line_type]", f"({line_type})", line_content)
+        #print("[set_and_debug_line_type]", f"({line_type})", line_content)
         pass
 
 
