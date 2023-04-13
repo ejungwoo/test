@@ -8,6 +8,7 @@ class fcconverter:
     [x] find_open_close(line_content,notation_open,closetion_open,ignore_while,before_name)
     [x] split2(line_content,delim,ignore_while)
     [x] config_fortran_line(variable)
+    [x] config_types(func_arg)
     [x] set_and_debug_line_type(line_content,line_type):
     """
     def __init__(self, file_name, default_tab_no=0, print_to_screen=False, print_to_file=False, use_compact_line=False, use_eval=True, limit_line_no = -1, use_module_file = False):
@@ -24,6 +25,7 @@ class fcconverter:
         self.default_tab_no = default_tab_no
         self.tab_no = 0
         self.detab_now = 0
+        self.tab_init = False
         self.tab_after = False
         self.tab_just_this_line = False
         self.current_line = 0
@@ -39,8 +41,8 @@ class fcconverter:
 
         ################################# list
         self.set_parameters = set()
-        self.dic_par_value = {}
-        self.dic_par_type = {}
+        self.dict_par_value = {}
+        self.dict_par_type = {}
         self.dict_dimensions = {}
 
         ################################# file
@@ -50,13 +52,17 @@ class fcconverter:
         self.file_name_out = ""
         self.file_name_out_module = ""
 
+        self.file_name0 = self.file_name
+        if self.file_name0.find("/")>0:
+            self.file_name0 = self.file_name[self.file_name0.find("/")+1:]
+
         if self.print_to_file:
             os.makedirs(self.oupt_path,exist_ok=True)
-            self.file_name_out = os.path.join(self.oupt_path,self.file_name.replace('.for',".C"))
+            self.file_name_out = os.path.join(self.oupt_path,self.file_name0.replace('.for',".C"))
             self.file_main = open(f'{self.file_name_out}', 'w')
             self.file_out = self.file_main
             if self.use_module_file:
-                self.file_name_out_module = os.path.join(self.oupt_path,self.file_name.replace('.for',"_modules.h"))
+                self.file_name_out_module = os.path.join(self.oupt_path,self.file_name0.replace('.for',"_modules.h"))
                 self.file_module = open(f'{self.file_name_out_module}', 'w')
 
 
@@ -111,6 +117,7 @@ class fcconverter:
 
 
                 if len(line_input)==0:
+                    self.tab_sign = ""
                     line_replaced = ""
 
                 else:
@@ -122,7 +129,11 @@ class fcconverter:
                         list_line_replaced.insert(count_comment,comment)
                         count_comment = count_comment + 1
 
-                    if self.detab_now != 0:
+                    if self.tab_init:
+                        self.tab_no = 0
+                        self.tab_sign = f"[{self.tab_no}(i)]"
+                        self.tab_init = False
+                    elif self.detab_now != 0:
                         self.tab_no = self.tab_no + self.detab_now
                         if self.detab_now > 0:
                             self.tab_sign = f"[{self.tab_no}(+{self.detab_now})]"
@@ -204,7 +215,7 @@ class fcconverter:
                 if limit_line_no>0:
                     if self.current_line==limit_line_no:
                         print('\n* List of parameters')
-                        for key, value in self.dic_par_value.items(): print (f"{key:10} = {value}")
+                        for key, value in self.dict_par_value.items(): print (f"{key:10} = {value}")
                         break
 
     def replace_with_arg(self, line_input):
@@ -239,6 +250,10 @@ class fcconverter:
         arg12 = arg1 + " " + arg2
         #########
         char0 = line_header[0] if len(line_header)>0 else ""
+        #########
+        label = line_header[1:5].strip()
+        if char0!=" ":
+            label = ""
         #########
 
         ispace_right_arg2 = right_arg2.find(' ')
@@ -283,14 +298,18 @@ class fcconverter:
 
         line_content = self.config_fortran_line(line_content)
 
+        if len(label)>0:
+            list_line_replaced.append(f"///TOOD {label} come to here")
+
+
         if line_header=="AFT_IF":
             self.tab_just_this_line
 
         if char0=='c' or char0=='C' or char0=='*' or char0=='d' or char0=='D' or char0=='!': # line_content is comment
             self.set_and_debug_line_type(line_content,"Comment")
             line_full_comment = line_input[1:].strip()
-            if len(line_full_comment)!=0: line_replaced = "/// "+line_full_comment
-            else: line_replaced = ""
+            if len(line_full_comment)!=0: list_line_replaced.append("/// "+line_full_comment)
+            else: list_line_replaced.append("/// "+line_full_comment)
 
         elif arg1.find("IF(")==0:
             self.set_and_debug_line_type(line_content,"if")
@@ -374,6 +393,7 @@ class fcconverter:
             list_value = self.split2(line_content[i_close+1:])
 
             line_replaced = "std::cout << " + ' << " " << '.join(list_value)
+            #line_replaced = "std::cout << " + ' << '.join(list_value)
             line_replaced = line_replaced.replace("'",'"')
             line_replaced = line_replaced + " << std::endl;"
             line_replaced = line_replaced + " // " + line_content[:i_close+1]
@@ -390,8 +410,8 @@ class fcconverter:
             if self.use_module_file==False:
                 self.file_name_out_module = os.path.join(self.oupt_path,f"{self.module_name}.h")
 
-            list_line_replaced.append(f"<<#ifndef {self.module_name} // {self.file_name_out_module}")
-            list_line_replaced.append(f"<<#define {self.module_name}")
+            list_line_replaced.append(f"<<#ifndef {self.module_name} // {self.file_name}")
+            list_line_replaced.append(f"<<#define {self.module_name} // {self.file_name_out_module}")
 
         elif line_content.find(f"END MODULE {self.module_name}")==0:
             self.set_and_debug_line_type(line_content,"end of module")
@@ -411,7 +431,7 @@ class fcconverter:
                 func_arg = ""
 
             self.tab_after = True
-            #func_arg = self.config_fortran_line(func_arg)
+            func_arg = self.config_types(func_arg,True)
             list_line_replaced.append(f"void {func_name}({func_arg}) "+"{")
 
         elif arg1.find("FUNCTION")==0:
@@ -424,15 +444,16 @@ class fcconverter:
 
             self.tab_after = True
             #func_arg = self.config_fortran_line(func_arg)
-            #parameter_type_ = self.dic_par_type[self.func_return_par]
+            #parameter_type_ = self.dict_par_type[self.func_return_par]
             parameter_type_ = "double"
             list_line_replaced.append(f"{parameter_type_} {func_name}({func_arg}) "+"{")
 
         elif arg1.find("END")==0:
             self.set_and_debug_line_type(line_content,"end of subrotine")
-            self.detab_now = -1
+            #self.detab_now = -1
+            self.tab_init = -1
             if self.func_return_par:
-                list_line_replaced.append(f"return {self.func_return_par}")
+                list_line_replaced.append(f"return {self.func_return_par};")
                 self.func_return_par = ""
             list_line_replaced.append("}")
 
@@ -479,7 +500,7 @@ class fcconverter:
                 parameter_name = parameter_name.strip()
                 list_def_parameters.append(parameter_name)
                 self.set_parameters.add(parameter_name)
-                self.dic_par_type[parameter_name]=parameter_type1
+                self.dict_par_type[parameter_name]=parameter_type1
             if self.use_compact_line:
                 list_line_replaced.append(f"{parameter_type1:13} {', '.join(list_def_parameters)};")
             else:
@@ -501,14 +522,14 @@ class fcconverter:
                     else: parameter_type_ = "const int"
                     list_init_parameters.append(f"{parameter_type_:13}{parameter_name} = {parameter_value};")
                     self.set_parameters.add(parameter_name)
-                    self.dic_par_type[parameter_name]=parameter_type_
+                    self.dict_par_type[parameter_name]=parameter_type_
 
                 if self.use_eval:
                     dict_sorted_par = {}
-                    for key in sorted(self.dic_par_value, key=len, reverse=True): dict_sorted_par[key] = self.dic_par_value[key]
+                    for key in sorted(self.dict_par_value, key=len, reverse=True): dict_sorted_par[key] = self.dict_par_value[key]
                     for key, value in dict_sorted_par.items(): parameter_value = parameter_value.replace(key,value)
 
-                self.dic_par_value[parameter_name]=parameter_value
+                self.dict_par_value[parameter_name]=parameter_value
 
             list_line_replaced = list_init_parameters
 
@@ -549,17 +570,16 @@ class fcconverter:
             else:
                 list_line_replaced.append(f"ifstream file_{open_file_id}({open_file_name});")
 
-        #elif arg1.find("CALL")==0:
-        #    self.set_and_debug_line_type(line_content,"function")
-        #    list_line_replaced.append(f"{right_arg1} //TODO? CALL")
+        elif arg1.find("CALL")==0:
+            self.set_and_debug_line_type(line_content,"function")
+            list_line_replaced.append(f"{right_arg1}; //TODO? CALL")
 
-        elif arg1.find("WRITE")==0: flag_todo = True
+        elif arg1.find("RETURN")==0: flag_todo = True
         elif arg1.find("GOTO")==0: flag_todo = True
-        elif arg1.find("CALL")==0: flag_todo = True
         elif arg1.find("READ")==0: flag_todo = True
         elif arg1.find("CLOSE")==0: flag_todo = True
         elif arg1.find("IMPLICIT")==0: flag_todo = True
-        elif arg1=="END": flag_todo = True
+        #elif arg1=="END": flag_todo = True
 
         else:
             list_line_replaced.append(f"{line_content};")
@@ -588,7 +608,7 @@ class fcconverter:
             list_arg_diff2 = []
             for arg_diff in list_arg_diff:
                 dict_sorted_par = {}
-                for key in sorted(self.dic_par_value, key=len, reverse=True): dict_sorted_par[key] = self.dic_par_value[key]
+                for key in sorted(self.dict_par_value, key=len, reverse=True): dict_sorted_par[key] = self.dict_par_value[key]
                 for key, value in dict_sorted_par.items(): arg_diff = arg_diff.replace(key,value)
                 arg_diff = eval(arg_diff)
                 ##############################
@@ -651,7 +671,7 @@ class fcconverter:
         i_close = count_char
         return i_name, i_open, i_close
 
-    def split2(self, line_content, delim=",", ignore_while="'"):
+    def split2(self, line_content, delim=",", ignore_while='"'):
         ignore_open = False
         count_inner_open = 0
         count_char = -1
@@ -686,6 +706,7 @@ class fcconverter:
 
         content = content.replace("'",'"')
 
+        content = content.replace("ABS(","TMath::Abs(")
         content = content.replace("ATAN(","TMath::Atan(")
         content = content.replace("SQRT(","TMath::Sqrt(")
         content = content.replace("ALog(","TMath::Log(")
@@ -716,13 +737,17 @@ class fcconverter:
 
                     dim_arg = after_key[i_open+1:i_close]
                     arg_low, arg_high = value[0], value[1]
-                    if arg_low!=0:
+                    if arg_low<0:
+                        arg_low = arg_low[:-1].replace("-(","")
+                        dim_arg_new = dim_arg + f"+{arg_low}"
+                    if arg_low>0:
                         dim_arg_new = dim_arg + f"-{arg_low}"
 
-                    dim_old = after_key[:i_open] + '[' + dim_arg_new + ']'
+                    dim_old = after_key[:i_open] + '[' + dim_arg + ']'
                     dim_new = after_key[:i_open] + '[' + dim_arg_new + ']'
                     if arg_low!='0':
-                        dim_new = after_key[:i_open] + '[' + dim_arg_new + f'/*{dim_old}->{dim_new}*/]'
+                        #dim_new = after_key[:i_open] + '[' + dim_arg_new + f'/*{dim_old}->{dim_new}*/]'
+                        dim_new = after_key[:i_open] + '[' + dim_arg_new + ']'
                     after_key_new = dim_new + after_key[i_close+1:]
                     content = before_key + after_key_new
 
@@ -731,8 +756,27 @@ class fcconverter:
 
         return content
 
+    def config_types(self, func_arg, add_AND=False):
+        list_arg = self.split2(func_arg)
+        func_arg = ""
+
+        dict_sorted_par = {}
+        for key in sorted(self.dict_par_type, key=len, reverse=True):
+            dict_sorted_par[key] = self.dict_par_type[key]
+
+        for arg_name in list_arg:
+            arg_type = "double"
+            for par_name, par_type in dict_sorted_par.items():
+                if arg_name == par_name:
+                    arg_type = par_type
+            if add_AND: func_arg = func_arg + f",{arg_type} &{arg_name}"
+            else:       func_arg = func_arg + f",{arg_type} {arg_name}"
+        func_arg = func_arg[1:]
+
+        return func_arg
+
     def set_and_debug_line_type(self,line_content,line_type):
-        #print("[set_and_debug_line_type]", f"({line_type})", line_content)
+        print("[set_and_debug_line_type]", f"({line_type})", line_content)
         pass
 
 
