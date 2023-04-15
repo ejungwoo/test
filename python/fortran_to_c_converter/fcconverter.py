@@ -85,6 +85,7 @@ class fcconverter:
         file = open(file_name,'r')
         list_line_input = file.read().splitlines()
         for module_run in [True,False]:
+            self.set_parameters = set()
             self.module_run = module_run
             self.current_line = 0
             self.tab_no = 0
@@ -534,10 +535,13 @@ class fcconverter:
             for parameter in list_parameter_names:
                 parameter_name, parameter_value = parameter[:parameter.find("=")].strip(), parameter[parameter.find("=")+1:].strip()
                 if parameter_name in self.set_parameters:
+                    #print(">>>>>",parameter_name,self.set_parameters)
                     list_init_parameters.append(f"{parameter_name} = {parameter_value};")
                 else:
-                    if parameter_value.find('.'): parameter_type_ = "const double"
-                    else: parameter_type_ = "const int"
+                    if parameter_value.find('E')>0 or parameter_value.find('D')>0 or parameter_value.find('.')>0:
+                        parameter_type_ = "const double"
+                    else:
+                        parameter_type_ = "const int"
                     list_init_parameters.append(f"{parameter_type_:13}{parameter_name} = {parameter_value};")
                     self.set_parameters.add(parameter_name)
                     self.dict_par_type[parameter_name]=parameter_type_
@@ -725,11 +729,13 @@ class fcconverter:
         content = content.replace("'",'"')
 
         content = content.replace("ABS(","TMath::Abs(")
-        content = content.replace("ATAN(","TMath::Atan(")
+        content = content.replace("ATAN(","TMath::ATan(")
         content = content.replace("SQRT(","TMath::Sqrt(")
         content = content.replace("ALog(","TMath::Log(")
         content = content.replace("EXP(","TMath::Exp(")
         content = content.replace("SINH(","TMath::SinH(")
+
+        content = content.replace("NINT(","int(")
 
         content = content.replace(".LT.","<")
         content = content.replace(".LE.","<=")
@@ -740,8 +746,12 @@ class fcconverter:
         content = content.replace(".OR.","||")
         content = content.replace(".AND.","&&")
 
-        content = content.replace("1D0","1E0")
-        content = content.replace("0D0","0E0")
+        content = content.replace("1D0","1.")
+        content = content.replace("2D0","2.")
+        content = content.replace("3D0","3.")
+        content = content.replace("4D0","4.")
+        content = content.replace("0D0","0.")
+        content = content.replace("0E)","0.")
 
 
         #content = content + ';'

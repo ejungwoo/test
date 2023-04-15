@@ -2,24 +2,27 @@ NTRY  num_tries
 ITRY  i_try
 
 NA num_bins
-XM x_max
+XM x_max_
 DX bin_width
-DN pdf_true_per_binevent
 
-XAP x_corrected
+XAP x_normalized
 
-DN1 hist_x_norm 
-DNXT hist_x_true  
-DNX hist_x_centered 
-DNXR hist_x_centered2 
-DNXV hist_x_something
-PFO hist_smeared            # array to store the Gaussian function used for smearing
-NPART num_particles  
+DN   array_x_mean
+DNXE array_e
+DN1  array_x_normalized
+DNXT array_x_init
+DNX  array_x_renormalized
+DNXR array_x_centered2
+DNXV array_x_something
+PFO  array_x_smeared            # array to store the Gaussian function used for smearing
+NPART num_particles
 NTRY num_events              # number of events to simulate
 XMAX x_max                 # maximum value of the x-axis
 SIGK sigma2                  # square of the standard deviation of the PDF of particle positions
+CN his_convoluted_restore
 
-XAK x_mean_squared_eman                 # squared average value of the average position relative to the true position
+XAKZ stddev_mean
+XAK x_mean_squared_mean                 # squared average value of the average position relative to the true position
 XAKS x_stddev                 # squared estimate of the error in the average position
 ISEED seed                 # seed used for generating random numbers
 LFLAG flag_ouflow                 # logical flag to handle underflow and overflow exceptions
@@ -34,10 +37,14 @@ NIT num_deconvolution
 XA x_mean
 XKA x_squared_mean
 
-DNTH hist_renormalized
+DNTH xx
 IT i_iterate
 IP i_particle
-IA i_bin
+IAX i_bin_x
+IA i_bin_x_mean
 JA j_bin
 IAS i_bin2
 ALA val_0p01
+
+XR x_renormalized
+PI pi

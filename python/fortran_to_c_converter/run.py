@@ -7,7 +7,7 @@ from fcconverter import fcconverter
 #fcconverter("FlowSym/flowsym.for",print_to_screen=True)
 
 
-#fcconverter("1D.for",print_to_file=True,print_to_screen=True,limit_line_no=165,par_file="list_parameter_replacement")
+#fcconverter("1D.for",print_to_file=True,print_to_screen=True,limit_line_no=30,par_file="list_parameter_replacement")
 fcconverter("1D.for",default_tab_no=1,print_to_file=True,print_to_screen=True,par_file="list_parameter_replacement")
 #fcconverter("DSTR.for",print_to_file=True)
 #fcconverter("FlowSym/flowsym.for",print_to_file=True)
