@@ -1,50 +1,53 @@
-from class_cwriter import cwriter 
+from lilakcc import lilakcc
 
-to_screen=False
-to_file=True
-
-################################################################################################### 
-cc = cwriter("LKHit", "data", "This is an example description of class LKHit")
-cc.add_private_par("int",     "id",             -1,                         "id incase there are more then one vertex")
-cc.add_private_par("TVector3","position"     ,  "TVector3(-9.9,-9.9,-9.9)", "position of the vertex",      includes="TVector3.h")
-cc.add_private_par("TVector3","positionError",  "TVector3(-9.9,-9.9,-9.9)", "position error of the vertex",includes="TVector3.h")
-cc.print_container(to_screen=to_screen,to_file=to_file)
-
+to_screen=True
+to_file=False
 
 ################################################################################################### 
-cc = cwriter("LKVertex", "data", "This is an example description of class LKVertex")
-cc.add_private_par("std::vector<int>", "trackIDArray", "{x}.clear()", includes="<vector>", par_persistency=False)
-cc.add_private_par("int", "trackMult", 0, "track multiplicity to create this vertex")
-cc.print_container(to_screen=to_screen,to_file=to_file, inheritance="public LKHit", includes="LKHit.hh")
+cc = lilakcc()
+cc.add("""
+/**
+ * Virtual class for Tracklet container
+ */
++class LKTracklet : public LKContainer 
 
++par/private    int fTrackID = -1;
++par/private    int fVertexID = -1; 
++par/private    int fPDG = -1;
++lname      pdg
 
-################################################################################################### 
-cc.__init__("LKTrack", "data", "This is an example description of class LKTrack")
-cc.add_private_par("int",     "id",        -999)
-cc.add_private_par("bool",    "isPrimary", "false")
-cc.add_private_par("int",     "PDGCode",   -1)
-cc.add_private_par("TVector3","momentum" , "TVector3(-9.9,-9.9,-9.9)",  includes="TVector3.h")
-cc.print_container(to_screen=to_screen,to_file=to_file)
++method/private    TVector3 fPositionHead = TVecotor3(-9.9,-9.9,-9.9);
++setter     void SetPositionHead(double x, double y, double z) { fPositionHead(x,y,z); }
 
++method/private    TVector3 fPositionTail = TVecotor3(-9.9,-9.9,-9.9);
++setter     void SetPositionTail(double x, double y, double z) { fPositionTail(x,y,z); }
 
-################################################################################################### 
-cc.__init__("LKVertexSelectionTask", "data",
-"""This is an example description of class LKVertexSelectionTask
-- If you put description here it will be shown in doxygen.
-- Doxygen support markdown.""")
++private    LKHitArray fHitArray = nullptr; ///<!
++clear      fHitArray.Clear(option);
++print      fHitArray.Print(option);
++getter     LKHitArray *GetHitArray() { return &fHitArray; }
 
-cc.add_input_data_array("LKTrack","trackArray","tracks",
-                        data_array_comment="array of tracks (LKTrack)",
-                        data_array_name_lc="trackArray",
-                        data_name="track",
-                        includes="LKTrack.hh")
++private    TGraphErrors *fTrajectoryOnPlane = nullptr; ///<! Graph object for drawing trajectory on 2D event display
++init       fTrajectoryOnPlane = new TGraphErrors();
++clear      fTrajectoryOnPlane.Set(0);
 
-cc.add_output_data_array("LKVertex","vertexArray","vertex",
-                         data_array_init_size=100,
-                         data_array_comment="array of vertex (LKVertex)",
-                         data_array_name_lc="vertexArray",
-                         data_name="vertex",
-                         includes="LKVertex.hh")
++public     virtual double Energy(int alpha=0) const = 0; ///< Kinetic energy of track at vertex.
++public     virtual TVector3 Momentum(int alpha=0) const = 0; ///< Momentum of track at vertex.
 
-cc.add_private_par("double", "cut", 12)
-cc.print_task(to_screen=to_screen,to_file=to_file)
++public     virtual GetAlphaTail() const;       ///< Alpha at tail (reconstructed back end)
++public     virtual Double_t LengthToAlpha(double length) const = 0;        ///< Convert track-length (mm?) to alpha
++public     virtual Double_t AlphaToLength(double alpha) const = 0;             ///< Convert alpha to track-length (mm?)
++public     virtual Double_t TrackLength(double a1=0, double a2=1) const = 0;   ///< Length of track between two alphas (default: from vertex to head).
+
+/**
+ * Extrapolated position at given alpha.
+ * Alpha (double) is scaled length variable along the track where
+ * alpha=0 is position of vertex and
+ * alpha=1 is position of head (reconstructed front end).
+ */
++public virtual TVector3 ExtrapolateToAlpha(double alpha) const = 0;
++public virtual TVector3 ExtrapolateHead(Double_t dalpha) const = 0;        ///< Extrapolate head by dalpha and return position
++public virtual TVector3 ExtrapolateTail(Double_t dalpha) const = 0;        ///< Extrapolate tail by dalpha and return position
++public virtual TVector3 ExtrapolateToPosition(TVector3 point) const = 0;   ///< Extrapolate and return POCA from point
+"""
+)

@@ -9,12 +9,16 @@ class lilakcc:
             [x] set_name()
             [x] set_path()
             [x] set_comment()
-            [] add_inherit_class()
-        [] add_method(line, acc_spec, method_source)
-        [] add_par(line, lname, gname, acc_spec,
-                  par_setter, par_getter,
-                  par_init, par_clear,
-                  par_print, par_source)
+            [x] add_inherit_class()
+        [x] add_method(line, acc_spec, method_source)
+        [-] add_par(line, lname, gname, acc_spec,
+                    par_setter, par_getter,
+                    par_init, par_clear,
+                    par_print, par_source)
+        [x] add_par2(par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
+                     set_type, set_name, set_comment,
+                     get_type, get_name, get_comment, get_is_const, acc_spec,
+                     includes, use_fname):
         [x] set_tab_size(tab_size)
     """
 
@@ -78,10 +82,10 @@ class lilakcc:
 
         group = []
         group_list = []
-        lines = input_lines.splitlines()
-        head_is_found = False
+        list_line = input_lines.splitlines()
 
-        for line in lines:
+        head_is_found = False
+        for line in list_line:
             if len(line)==0:
                 if len(group)>0:
                     group_list.append(group.copy())
@@ -93,9 +97,12 @@ class lilakcc:
 
             elif line[0] == '+':
                 ltype = line[1:line.find(' ')] # line type
-                content = line[line.find(' ')+1:] # line type
-                content = content.strip()
-                if ltype=='class' or ltype=='private' or ltype=='protected' or ltype=='public':
+                content = line[line.find(' ')+1:].strip() # line content
+                if ltype=='':
+                    ltype=='public'
+                def_method = self.this_line_is_method(func_full)
+
+                if ltype=='class' or ltype>='private' or ltype>='protected' or ltype>='public':
                     if head_is_found == True:
                         if len(group)>0:
                             group_list.append(group.copy())
@@ -104,11 +111,8 @@ class lilakcc:
                     if ltype.find('par/p')==0 or ltype.find('method/p')==0:
                         pass
                     elif ltype in ["private", "protected", "public"]:
-                        ib = content.find('(')
-                        ie = content.find('=')
-                        if   ie<0 and ib<0: ltype = 'par/'+ltype
-                        elif ib<0 or ie<ib: ltype = 'par/'+ltype
-                        elif ie<0 or ib<ie: ltype = 'method/'+ltype
+                        if def_method:  ltype = 'method/'+ltype
+                        else:           ltype = 'par/'+ltype
                     head_is_found = True
                     group.append([ltype,content])
 
@@ -121,7 +125,17 @@ class lilakcc:
                     group.clear()
 
         for group in group_list:
-            ltype0, lin0 = group[0]
+            ltype0, line0 = group[0]
+
+            for ltype, line in group:
+                #do something to add line to previous line when line is just continuous content to previous
+                #for i0 in range(len(group)):
+                #    for i1 in range(len(group)):
+                #    i1 = i0 + 1
+                #    if i1 >= len(group):
+                #        break
+                #    ltype0, line0 = group[i0]
+                #    ltype1, line1 = group[i1]
 
             if ltype0=='class':
                 class_path = ""
@@ -157,24 +171,25 @@ class lilakcc:
                     if ltype=='clear':  par_clear  = line
                     if ltype=='print':  par_print  = line
                     if ltype=='source': par_source = line
-                add_par(line0, lname=lname, gname=gname, acc_spec=acc_spec,
-                        par_setter = par_setter, par_getter = par_getter,
-                        par_init = par_init, par_clear = par_clear,
-                        par_print = par_print, par_source = par_source)
+                self.add_par(line0, lname=par_lname, gname=par_gname, acc_spec=acc_spec,
+                        par_setter=par_setter, par_getter=par_getter,
+                        par_init=par_init, par_clear=par_clear,
+                        par_print=par_print, par_source=par_source)
 
+###########################################################################################################################################
     def set_class(self, line, class_path="", class_comment=""):
-    """
-    1) class class_name
-    2) class class_name : public inherit_class
-    3) class class_name : public inherit_class1, public inherit_class2, ...
-    """
+        """
+        1) class class_name
+        2) class class_name : public inherit_class
+        3) class class_name : public inherit_class1, public inherit_class2, ...
+        """
         ba_colon = line.split(':')
         before_colon = ba_colon[0].strip()
         after_colon = ba_colon[1].strip()
 
         if before_colon.find('class')==0:
             class_name = before_colon[5:].strip()
-        else
+        else:
             class_name = before_colon.strip()
 
         set_name(class_name)
@@ -199,15 +214,34 @@ class lilakcc:
             self.method_header_list[2].append(method_header)
             self.method_source_list[2].append(method_source)
         
-    def add_par(self, line, acc_spec="public", lname="", gname="",
-                par_setter="", par_getter="",
-                par_init="", par_clear="",
-                par_print="", par_source=""):
+###########################################################################################################################################
+    def add_par(self, lines, lname="public", gname=par_gname, acc_spec=acc_spec,
+        pass
+                par_setter=par_setter, par_getter=par_getter,
+                par_init=par_init, par_clear=par_clear,
+                par_print=par_print, par_source=par_source)
+        """ add parameter
+        lines               -- Input contents
+        lname = ""          -- Local name to be used inside the block
+        gname = ""          -- Global(Field) name used through class. Default is f[lname] if not set.
+        acc_spec = "public" -- Access specifier: one of "public", protected", "private"
+        par_setter = ""     -- Contents to be add as Getter.
+        par_getter = ""     -- Contents to be add as Setter.
+        par_init = ""       -- Contents to be add in the Init() method.
+        par_clear = ""      -- Contents to be add in the Clear() method.
+        par_print = ""      -- Contents to be add in the Print() method.
+        par_source = ""     -- Contents to be add in the class constructor.
+        """
+        if   acc_spec=="public":     ppp_index = 0
+        elif acc_spec=="private" :   ppp_index = 2
+        elif acc_spec=="protected" : ppp_index = 1
+        else:
+            print("Error! [add_par], acc_spec should be one of 'public', 'protected', 'priviate'!")
         pass
 
         
 ###########################################################################################################################################
-    def add_par(self,
+    def add_par2(self,
                 par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
                 set_type="", set_name="", set_comment="",
                 get_type="", get_name="", get_comment="", get_is_const=True, acc_spec="public",
@@ -357,7 +391,7 @@ class lilakcc:
 
     def make_fline(self, func_full, func_comment="", tab_no=-1, is_source=False, is_header=False, omit_semicolon=False, in_line=False):
         """Make funciton from line"""
-        func_type, func_name, func_parameters, func_content, tab_no2, func_comment2, func_is_const = self.break_line(func_full)
+        def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments2 = self.break_line(func_full)
 
         if   len(func_comment)==0 and len(func_comment2)!=0: func_comment = func_comment2
         elif len(func_comment)!=0 and len(func_comment2)==0: pass
@@ -367,112 +401,188 @@ class lilakcc:
         elif tab_no>=0: tab_no = tab_no
         else: tab_no = 0
 
-        return self.make_function(func_type, func_name, func_parameters, func_content, tab_no, func_comment, func_is_const, is_header, is_source, omit_semicolon, in_line)
+        return make_function(func_type=func_type, func_name=func_name, func_arguments=func_arguments,
+            func_content=func_content, tab_no=0, func_comment=func_comment, func_const=func_const,
+            is_header=is_header, is_source=is_source, omit_semicolon=omit_semicolon, in_line=in_line)
+
 ###########################################################################################################################################
 
-    def break_line(self,func_full):
-        func_noc = func_full
-        func_prec_list = []
+    def this_line_is_method(self,line):
+        ic1 = line.find("//")
+        if ic1>=0: return False
+        line_before_cb = line[:icb1].strip() if line.find("{")>0 else line
+        ib1 = line_before_cb.find("(")
+        ieq = line_before_cb.find("=")
+        if ib1<0 or (ieq>0 and ieq<ib1): return False
+        else: return True
 
-        ic1 = func_noc.find("/*")
+    def break_line(self,lines,print_title=True):
+        """
+        Break input line into
+        * method:    type, name, argument, const, (init/content), comments
+        * parameter: type, name, init
+        return True(method)/False(parameter), type, name, argument, True(const)/False() init, content, comments
+        """
+        ################################################### precomment
+        comment_list = []
+        line_inprocess = lines
+        ic1 = line_inprocess.find("//")
+        # comment_type
+        # 0:
+        # 1: //
+        # 2: ///
+        # 3: ///<
+        # 4: ///<!
+        # 5: //!
+        comment_type = 0
         while ic1>=0:
-            ic2 = func_noc.find("*/")
-            func_foundblock = func_noc[ic1:ic2+2]
-            func_noc = func_noc[ic2+3:]
-            ic1 = func_noc.find("/*")
-            if func_foundblock.isspace()==False:
-                for line in func_foundblock.splitlines():
-                    line = line.strip()
-                    if line!="/**" and line!="*/" and line!="/*":
-                        if   line.find("/** ")==0:  line = line[4:]
-                        elif line.find("/**")==0:   line = line[3:]
-                        if   line.find("/* ")==0:   line = line[3:]
-                        elif line.find("/*")==0:    line = line[2:]
-                        if   line.find("*/ ")==0:   line = line[3:]
-                        elif line.find("*/")==0:    line = line[2:]
-                        if   line.find("* ")==0:    line = line[2:]
-                        elif line.find("*")==0:     line = line[1:]
-                        func_prec_list.append(line)
+            if ic1==line_inprocess.find("///<!"):
+                func_linec = line_inprocess[ic1+5:]
+                false_persistency = True
+                comment_type = 4
+            elif ic1==line_inprocess.find("//!"):
+                func_linec = line_inprocess[ic1+3:]
+                false_persistency = True
+                comment_type = 5
+            elif ic1==line_inprocess.find("///<"):
+                func_linec = line_inprocess[ic1+4:]
+                comment_type = 3
+            elif ic1==line_inprocess.find("///"):
+                func_linec = line_inprocess[ic1+3:]
+                comment_type = 2
+            else:
+                func_linec = line_inprocess[ic1+2:]
+                comment_type = 1
+            line_inprocess = line_inprocess[:ic1]
+            comment_list.append(func_linec)
+            ic1 = line_inprocess.find("//")
 
-        ib1 = func_noc.find("(")
-        ic1 = func_noc.find("//")
-        while ic1>=0 and ic1<ib1:
-            ic2 = func_noc.find("\n")
-            if ic1==func_noc.find("///"):   func_linec = func_noc[ic1+3:ic2]
-            else:                           func_linec = func_noc[ic1+2:ic2]
-            func_noc = func_noc[ic2+1:]
-            func_prec_list.append(func_linec)
-            ib1 = func_noc.find("(")
-            ic1 = func_noc.find("//")
+        ###################################################
+        icb1 = line_inprocess.find("{")
+        line_before_cb = line_inprocess
+        line_after_cb  = ""
+        if icb1>0:
+            line_before_cb = line_inprocess[:icb1].strip()
+            line_after_cb  = line_inprocess[icb1:].strip()
 
-        func_prec = '\n'.join(func_prec_list) if len(func_prec_list)!=0 else ""
+        ################################################### before_cb
+        ib1 = line_before_cb.find("(")
+        ieq = line_before_cb.find("=")
 
-        ib1 = func_noc.find("(")
-        if ib1<0: ib1 = len(func_noc)
-        ispace = func_noc[:ib1].rfind(" ")
-        while ispace==ib1-1:
-            func_noc = func_noc[:ispace]+func_noc[ib1:]
-            ib1 = func_noc.find("(")
-            if ib1<0: ib1 = len(func_noc)
-            ispace = func_noc[:ib1].rfind(" ")
+        func_type = ""
+        func_name = ""
+        func_init = ""
+        func_arguments = ""
+        func_const = ""
 
-        if ispace<0: iname = 0
-        else: iname = ispace + 1
+        def_parameter = False
+        def_method = False
+        if ib1<0 or (ieq>0 and ieq<ib1):
+            ################################################### def_parameter
+            def_parameter = True
+            if ieq>0: #par without init
+                func_type_name, func_init = line_inprocess[:ieq].strip(), line_inprocess[ieq+1:].strip()
+            else: #par with init
+                func_type_name = line_inprocess.strip()
+                func_init = ""
 
-        ib2 = func_noc.rfind(")")
-        if ib2<0: ib2 = len(func_noc)
+            icomma = func_type_name.find(",")
+            ispace = func_type_name.rfind(" ")
+            if ispace<0:
+                print("ERROR1 configuring type and name: ", lines)
+                return False
+            if icomma>0:
+                while func_type_name[icomma-1]==' ':
+                    icomma = icomma-1
+                ispace = func_type_name[:icomma].rfind(" ")
+            func_type, func_names = func_type_name[:ispace].strip(), func_type_name[ispace:].strip()
 
-        ib3 = func_noc.find("{")
-        ib4 = func_noc.find("}")
+            if func_names.find(",")>0:
+                for par in func_names.split(","):
+                    func_name = func_name + ", " + par.strip()
+                func_name = func_name[2:]
+            else:
+                func_name = func_names
 
-        func_pstc = ""
-        if ib4<0: func_aft4 = func_noc[ib2+1:]
-        else:     func_aft4 = func_noc[ib4+1:]
-        ic3 = func_aft4.find("//")
-        if ic3>=0:
-            ic4 = func_aft4.find("///<")
-            if ic4>=0: func_pstc = func_aft4[ic4+4:]
-            else:      func_pstc = func_aft4[ic3+2:]
-        func_pstc = func_pstc.strip()
+        else:
+            ################################################### def_method
+            def_method = True
+            line_before_rb, line_after_rb = line_before_cb[:ib1].strip(), line_before_cb[ib1:].strip()
 
-        func_name = func_noc[iname:ib1]
-        if iname>0: func_type = func_noc[:iname-1]
-        else: func_type = ""
+            func_arguments = line_after_rb
+            ib2 = func_arguments.rfind(")")
+            if ib2<ieq:
+                func_arguments, func_init = line_after_rb[:ieq].strip(), line_after_rb[ieq:].strip()
 
-        func_parameters = func_noc[ib1+1:ib2]
-        if ib3>0:
-            func_content = func_noc[ib3+1:ib4]
-            func_is_const = True if func_noc[ib2+1:ib3].find("const")>=0 else False
-            if func_content[0]=="\n": func_content = func_content[1:]
-            if func_content[len(func_content)-1]=="\n": func_content = func_content[:len(func_content)-1]
+            if ib2>0:
+                func_arguments, func_x_par = func_arguments[1:ib2].strip(), func_arguments[ib2:].strip()
+                #print(func_arguments, " ################ ", func_x_par)
+                if func_x_par.find("const")>=0:
+                    func_const = "const"
+            elif ib2==0:
+                func_arguments = ""
+            elif ib2<0:
+                print("ERROR3 configuring parmeters no ')': ", lines)
+                return False
+
+            ispace = line_before_rb.rfind(" ")
+            if ispace<0:
+                func_type, func_name = "", line_before_rb
+            else:
+                func_type, func_name = line_before_rb[:ispace].strip(), line_before_rb[ispace:].strip()
+
+        ################################################### configure
+        if len(func_name)>0:
+            if func_name[len(func_name)-1]==';':
+                func_name = func_name[:len(func_name)-1].strip()
+
+        if len(func_init)>0:
+            if func_init[len(func_init)-1]==';':
+                func_init = func_init[:len(func_init)-1].strip()
+
+        if func_name[0]=='*':
+            func_name = func_name[1:]
+            func_type = func_type + "*"
+
+        ################################################### after_cb
+        if def_method:
+            ib3 = line_after_cb.find("{")
+            ib4 = line_after_cb.find("}")
+            if ib3>=0:
+                if ib3+1==ib4:
+                    func_content = ";"
+                else:
+                    func_content = line_after_cb[ib3+1:ib4].strip()
+                    if func_content[0]=="\n": func_content = func_content[1:]
+                    if func_content[len(func_content)-1]=="\n": func_content = func_content[:len(func_content)-1]
+            else:
+                func_content = ""
         else:
             func_content = ""
-            func_is_const = True if func_noc[ib2+1:].find("const")>=0 else False
 
-        func_prec_list.append(func_pstc)
-        func_comment = '\n'.join(func_prec_list)
+        func_comments = '\n'.join(comment_list)
 
-        tab_no = 0 #todo
+        return (True if def_method else False), func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments
 
-        return func_type, func_name, func_parameters, func_content, tab_no, func_comment, func_is_const
-
-    def make_function(self, func_type, func_name, func_parameters, func_content="", tab_no=0, func_comment="", func_is_const=False, is_header=False, is_source=False, omit_semicolon=False, in_line=False):
+    def make_function(self,
+            func_type, func_name, func_arguments,
+            func_content="", tab_no=0, func_comment="", func_const="",
+            is_header=False, is_source=False, omit_semicolon=False, in_line=False):
         """Make c++ function with given parameters
-
         func_type       (string) -- data type of function
         func_name       (string) -- name of the function
-        func_parameters (string) -- input parameters of function
+        func_arguments  (string) -- input parameters of function
         func_content    (string; "") -- content of the function
         tab_no          (string ; 0) -- number of tabs (indents) of the function
         func_comment    (string ; "") -- comment of the function
-        func_is_const   (bool ; False) -- Put const after the function definition
+        func_const      (string ; "") -- "const" if const function
         is_header       (bool ; False) -- Make header file
         is_source       (bool ; False) -- Make source file
         in_line         (bool ; False) -- Make function in-line
         omit_semicolon  (bool ; False) -- Omit ";"
         """
-        if is_source and func_name.find("::")<0: func_full = self.name + "::" + func_name + "(" + func_parameters + ")"
-        else:                                    func_full = func_name + "(" + func_parameters + ")"
+        if is_source and func_name.find("::")<0: func_full = self.name + "::" + func_name + "(" + func_arguments + ")"
+        else:                                    func_full = func_name + "(" + func_arguments + ")"
 
         if len(func_type)>0: func_full = ' '*(self.tab_size*tab_no) + func_type + " " + func_full
         else:                func_full = ' '*(self.tab_size*tab_no) + func_full

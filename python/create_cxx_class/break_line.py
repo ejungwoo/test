@@ -77,7 +77,15 @@ def break_line(lines,print_title=True):
             while func_type_name[icomma-1]==' ':
                 icomma = icomma-1
             ispace = func_type_name[:icomma].rfind(" ")
-        func_type, func_name = func_type_name[:ispace].strip(), func_type_name[ispace:].strip()
+        func_type, func_names = func_type_name[:ispace].strip(), func_type_name[ispace:].strip()
+
+        if func_names.find(",")>0:
+            for par in func_names.split(","):
+                func_name = func_name + ", " + par.strip()
+            func_name = func_name[2:]
+        else:
+            func_name = func_names
+
     else:
         ################################################### def_method
         def_method = True
@@ -136,9 +144,16 @@ def break_line(lines,print_title=True):
 
     func_comments = '\n'.join(comment_list)
 
-    return (True if def_method else False), func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments
+    #return (True if def_method else False), func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments
 
-    #if def_method: print_method(func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments)
+    print()
+    print(">>", lines)
+    if def_method:
+        print(f"MM /// {func_comments}")
+        print(f"MM {func_type} {func_name}({func_arguments}) {func_const} " + "{ " + f"{func_content}" + " }")
+    if def_parameter:
+        print(f"PP /// {func_comments}")
+        print(f"PP {func_type} {func_name} = {func_init};")#" {func_const} " + "{ " + f"{func_content}" + " }")
     #if def_parameter: print("PPPP   ", lines)
     #else            : print("MMMM   ", lines)
     #if print_title:
@@ -149,44 +164,43 @@ def break_line(lines,print_title=True):
     #    tt4 = "<init>"
     #    tt5 = "<is_const>"
     #    tt6 = "<comment>"
-    #    print(f"{tt0:15s}|{tt1:20s}|{tt2:20s}|{tt3:20s}|{tt4:15s}|{tt5:6s}|{tt6}")
-    #print(f"{func_type:15s}|{func_name:20s}|{func_arguments:20s}|{func_content:20s}|{func_init:15s}|{str(func_is_const):6s}|{func_comments}")
+    #    print(f"{tt0:25s}|{tt1:20s}|{tt2:20s}|{tt3:20s}|{tt4:15s}|{tt5:6s}|{tt6}")
+    #print(f"{func_type:15s}|{func_name:20s}|{func_arguments:20s}|{func_content:20s}|{func_init:15s}|{str(func_const):6s}|{func_comments}")
 
 def print_method(func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments):
     if len(func_init)!=0:
         func_content = "= "+func_init+";"
-    print((func_type, func_name+"("+func_arguments+")", func_const, func_content))
         
 
 
 if  __name__== "__main__":
-    #break_line("TVector3 fPositionHead;")
-    #break_line("TVector3 fPositionHead = TVecotor3(-9.9,-9.9,-9.9);")
-    #break_line("const double a= 1000;")
-    #break_line("const double a =1000;")
-    #break_line("const double a   =   1000 ;")
-    #break_line("void SetPositionTail(double x, double y, double z);")
-    #break_line("void SetPositionTail(double x, double y=10, double z=11);")
-    #break_line("void SetPositionTail(TVector3 x=TVector3(1,2,3), double y=10, double z=11);")
-    #break_line("void SetPositionTail(double x, double y, double z) {}")
-    #break_line("void SetPositionTail(double x, double y, double z) { fPositionTail(x,y,z); }")
-    #break_line("LKHitArray fHitArray;")
-    #break_line("LKHitArray fHitArray = nullptr;")
-    #break_line("LKHitArray fHitArray = nullptr; ///< ...")
-    #break_line("LKHitArray fHitArray = nullptr; ///<! ...")
-    #break_line("LKHitArray *GetHitArray();")
-    #break_line("LKHitArray *GetHitArray() { return &fHitArray; }")
-    #break_line("LKHitArray* GetHitArray() { return &fHitArray; }")
-    #break_line("LKHitArray GetHitArray() const { return fHitArray; }")
-    #break_line("TGraphErrors *fTrajectoryOnPlane = nullptr; ///<! Graph object for drawing trajectory on 2D event display")
-    #break_line("TGraphErrors* fTrajectoryOnPlane; ///<! Graph object for drawing trajectory on 2D event display")
-    #break_line("virtual GetAlphaTail() const;       ///< Alpha at tail (reconstructed back end)")
-    #break_line("virtual double Energy(int alpha=0)     const = 0; ///< Kinetic energy of track at vertex.")
+    break_line("TVector3 fPositionHead;")
+    break_line("TVector3 fPositionHead = TVecotor3(-9.9,-9.9,-9.9);")
+    break_line("const double a= 1000;")
+    break_line("const double a =1000;")
+    break_line("const double a   =   1000 ;")
+    break_line("void SetPositionTail(double x, double y, double z);")
+    break_line("void SetPositionTail(double x, double y=10, double z=11);")
+    break_line("void SetPositionTail(TVector3 x=TVector3(1,2,3), double y=10, double z=11);")
+    break_line("void SetPositionTail(double x, double y, double z) {}")
+    break_line("void SetPositionTail(double x, double y, double z) { fPositionTail(x,y,z); }")
+    break_line("LKHitArray fHitArray;")
+    break_line("LKHitArray fHitArray = nullptr;")
+    break_line("LKHitArray fHitArray = nullptr; ///< ...")
+    break_line("LKHitArray fHitArray = nullptr; ///<! ...")
+    break_line("LKHitArray *GetHitArray();")
+    break_line("LKHitArray *GetHitArray() { return &fHitArray; }")
+    break_line("LKHitArray* GetHitArray() { return &fHitArray; }")
+    break_line("LKHitArray GetHitArray() const { return fHitArray; }")
+    break_line("TGraphErrors *fTrajectoryOnPlane = nullptr; ///<! Graph object for drawing trajectory on 2D event display")
+    break_line("TGraphErrors* fTrajectoryOnPlane; ///<! Graph object for drawing trajectory on 2D event display")
+    break_line("virtual GetAlphaTail() const;       ///< Alpha at tail (reconstructed back end)")
+    break_line("virtual double Energy(int alpha=0)     const = 0; ///< Kinetic energy of track at vertex.")
     break_line("virtual const double Energy(int alpha) const { return 100; } ///< Kinetic energy of track at vertex.")
-    #break_line("LKClass::LKClass() {}")
-    #break_line("const double a    ,b, c,d")
-    #break_line("const double a,   i,b, c,d")
-    #break_line("const double a,i  ,b, c,d")
-    #break_line("const double a,  i  ,b, c,d")
-    #break_line("const double array[] = {0};")
-    #break_line("const double array[7] = {0,1,2,3,4,5,6};")
+    break_line("LKClass::LKClass() {}")
+    break_line("const double a    ,b, c,d")
+    break_line("const double a,   i,b, c,d")
+    break_line("const double a,i  ,b, c,d")
+    break_line("const double a,  i  ,b, c,d")
+    break_line("const double array[] = {0};")
+    break_line("const double array[7] = {0,1,2,3,4,5,6};")
