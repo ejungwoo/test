@@ -4,24 +4,28 @@ class lilakcc:
     """
     Write c++ class with source and header
     - methods:
-        [x] add(input_lines)
-        [x] set_class(line0, acc_spec, method_source)
-            [x] set_name()
-            [x] set_path()
-            [x] set_comment()
-            [x] add_inherit_class()
-        [x] break_line(self,lines)
-        [x] add_method(line, acc_spec, method_source)
-        [-] make_method(def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments)
-        [-] add_par(line, lname, gname, acc_spec,
+        [x] set_class(self,line0, acc_spec, method_source)
+            [x] set_file_name(self,name)
+            [x] set_file_path(self,file_path)
+            [x] set_class_comment(self, comment)
+            [x] add_inherit_class(self, inherit_acc_class)
+            [x] set_tab_size(self, tab_size)
+
+        [x] add(self,input_lines)
+            [x] break_line(self,lines)
+            [x] add_method(self,line, acc_spec, method_source)
+            [-] make_method(self,def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments)
+
+        [-] add_par(self,line, lname, gname, acc_spec,
                     par_setter, par_getter,
                     par_init, par_clear,
                     par_print, par_source)
-        [x] add_par2(par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
-                     set_type, set_name, set_comment,
+        [x] add_par2(self,par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
+                     set_type, set_name, set_class_comment,
                      get_type, get_name, get_comment, get_is_const, acc_spec,
                      includes, use_fname):
-        [x] set_tab_size(tab_size)
+
+        [x] make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True)
     """
 
     def __init__(self,name=""):
@@ -62,7 +66,7 @@ class lilakcc:
         """Set tab size"""
         self.tab_size = tab_size
 
-    def set_name(self,name):
+    def set_file_name(self,name):
         """Set name of the class"""
         self.name = name
   
@@ -70,7 +74,7 @@ class lilakcc:
         """Set path where files are created"""
         self.path = file_path
 
-    def set_comment(self, comment):
+    def set_class_comment(self, comment):
         """Description of the class"""
         self.comment = comment 
 
@@ -85,8 +89,9 @@ class lilakcc:
         group = []
         group_list = []
         list_line = input_lines.splitlines()
-        list_complete = ["class", "par/private", "par/protected", "par/public", "method/private", "method/protected", "method/public"]
-        list_incomplete = ["private", "protected", "public"]
+        #list_complete = ["class", "par/private", "par/protected", "par/public", "method/private", "method/protected", "method/public"]
+        list_complete = ["class", "private", "protected", "public"]
+        #list_incomplete = ["private", "protected", "public"]
         list_components = ["gname", "lname", "setter", "getter", "init", "clear", "source", "print"]
 
         head_is_found = False
@@ -106,9 +111,9 @@ class lilakcc:
                 if ltype=='':
                     ltype=='public'
                 def_method = self.check_method_or_par(content)
-                if ltype in list_incomplete:
-                    if def_method:  ltype = 'method/'+ltype
-                    else:           ltype = 'par/'+ltype
+                #if ltype in list_incomplete:
+                #    if def_method:  ltype = 'method/'+ltype
+                #    else:           ltype = 'par/'+ltype
                 if ltype in list_complete:
                     if head_is_found == True:
                         if len(group)>0:
@@ -119,7 +124,7 @@ class lilakcc:
                     group.append([ltype,content])
                 elif ltype in list_components:
                     group.append([ltype,content])
-                    print([ltype,content])
+                    #print([ltype,content])
             else:
                 group.append(["",line])
         if len(group)>0:
@@ -142,10 +147,10 @@ class lilakcc:
                         break
                 group_new.append([ltype0,line0])
 
-            print("==")
-            for ltype, line in group_new:
-                print(f"{ltype:15}",line)
-            continue
+            #print("==")
+            #for ltype, line in group_new:
+            #    print(f"{ltype:15}",line)
+            #continue
 
             if ltype0=='class':
                 class_path = ""
@@ -153,7 +158,7 @@ class lilakcc:
                 for ltype, line in group_new:
                     if ltype=='path':    class_path = line
                     if ltype=='comment': class_comment = line
-                set_class(line0,class_path=class_path,class_comment=class_comment)
+                self.set_class(line0,class_path=class_path,class_comment=class_comment)
             elif ltype0[:5]=='method':
                 acc_spec = ltype0[:7]
                 for ltype, line in group_new:
@@ -200,20 +205,22 @@ class lilakcc:
         else:
             class_name = before_colon.strip()
 
-        set_name(class_name)
-        set_path(class_comment)
-        set_comment(class_comment)
+        self.set_file_name(class_name)
+        self.set_file_path(class_path)
+        self.set_class_comment(class_comment)
 
         inherit_list = after_colon.split(',')
         for inherit_line in inherit_list:
             if len(inherit_line)>5:
-                add_inherit_class(inherit_line.spilt())
+                self.add_inherit_class(inherit_line.split())
     
 ###########################################################################################################################################
     def add_method(self, line, acc_spec="public", method_source=""):
         def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments = self.break_line(lines)
-        self.make_method(def_method=def_method, func_type=func_type, func_name=func_name, func_arguments=func_arguments,
-                         func_const=func_const, func_init=func_init, func_content=func_content, func_comments=func_comments)
+        line = self.make_method(def_method=def_method, func_type=func_type, func_name=func_name, func_arguments=func_arguments,
+                func_const=func_const, func_init=func_init, func_content=func_content, func_comments=func_comments)
+        print("== add method")
+        print(line)
         if acc_spec=="public":
             self.method_header_list[0].append(method_header)
             if len(method_source)>=0: self.method_source_list[0].append(method_source)
@@ -226,7 +233,18 @@ class lilakcc:
 
 ###########################################################################################################################################
     def make_method(self, def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments):
-        pass
+        line_const = f" const" if len(func_const)>=0 else ""
+        line_arguments = "(" + content + ")" if len(func_arguments)>=0 else ""
+        line_init = " = " + func_init + "" if len(func_init)>=0 else ""
+        line_content = ""
+        if len(func_content)>0:
+            if func_content.find("\n")>=0:
+                line_content = "{\n" + content + "\n}"
+            else:
+                line_content = "{ " + content + " }"
+        line = f"{func_type} {func_name}{line_arguments}{line_const} {line_content}"
+        line = self.make_doxygen_comment(func_comment,line)
+        return line
 
 ###########################################################################################################################################
     def add_par(self, lines, 
@@ -248,7 +266,7 @@ class lilakcc:
         elif acc_spec=="private" :   ppp_index = 2
         elif acc_spec=="protected" : ppp_index = 1
         else:
-            print("Error! [add_par], acc_spec should be one of 'public', 'protected', 'priviate'!")
+            print(f"Error! [add_par], acc_spec should be one of 'public', 'protected', 'priviate'! {acc_spec}?")
         pass
 
         
@@ -634,7 +652,6 @@ class lilakcc:
         """Make doxygen comment
 
         add_to (string) -- If add_to parameter is set True, comment will be put after (before)
-                           for the case comment is one-line (multi-line) and return it.
                            Return comment, is_mult_line where is_mult_line is True when comment is multi-line if add_to is set False. 
         always_mult_line (bool) -- The comments are assumed that it is multi-line and use /** [...] */
         not_for_doxygen (bool) -- If True: /** -> /*, ///< -> //
