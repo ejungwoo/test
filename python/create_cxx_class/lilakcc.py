@@ -10,7 +10,9 @@ class lilakcc:
             [x] set_path()
             [x] set_comment()
             [x] add_inherit_class()
+        [x] break_line(self,lines)
         [x] add_method(line, acc_spec, method_source)
+        [-] make_method(def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments)
         [-] add_par(line, lname, gname, acc_spec,
                     par_setter, par_getter,
                     par_init, par_clear,
@@ -83,6 +85,9 @@ class lilakcc:
         group = []
         group_list = []
         list_line = input_lines.splitlines()
+        list_complete = ["class", "par/private", "par/protected", "par/public", "method/private", "method/protected", "method/public"]
+        list_incomplete = ["private", "protected", "public"]
+        list_components = ["gname", "lname", "setter", "getter", "init", "clear", "source", "print"]
 
         head_is_found = False
         for line in list_line:
@@ -91,70 +96,73 @@ class lilakcc:
                     group_list.append(group.copy())
                     head_is_found = False
                     group.clear()
-
             elif line[:2] == '//' or line[:2] == '/*' or line[:2] == ' *' or line[0] == '*':
                 group.append(["comment",line])
-
             elif line[0] == '+':
-                ltype = line[1:line.find(' ')] # line type
-                content = line[line.find(' ')+1:].strip() # line content
+                ispace = line.find(' ')
+                if ispace < 0: ispace = len(line)
+                ltype = line[1:ispace] # line type
+                content = line[ispace+1:].strip() # line content
                 if ltype=='':
                     ltype=='public'
-                def_method = self.this_line_is_method(func_full)
-
-                if ltype=='class' or ltype>='private' or ltype>='protected' or ltype>='public':
+                def_method = self.check_method_or_par(content)
+                if ltype in list_incomplete:
+                    if def_method:  ltype = 'method/'+ltype
+                    else:           ltype = 'par/'+ltype
+                if ltype in list_complete:
                     if head_is_found == True:
                         if len(group)>0:
                             group_list.append(group.copy())
                             head_is_found = False
                             group.clear()
-                    if ltype.find('par/p')==0 or ltype.find('method/p')==0:
-                        pass
-                    elif ltype in ["private", "protected", "public"]:
-                        if def_method:  ltype = 'method/'+ltype
-                        else:           ltype = 'par/'+ltype
                     head_is_found = True
                     group.append([ltype,content])
-
-                elif ltype in ["gname", "lname", "setter", "getter", "init", "clear", "source", "print"]:
+                elif ltype in list_components:
                     group.append([ltype,content])
+                    print([ltype,content])
             else:
-                if len(group)>0:
-                    group_list.append(group.copy())
-                    head_is_found = False
-                    group.clear()
+                group.append(["",line])
+        if len(group)>0:
+            group_list.append(group.copy())
+            head_is_found = False
+            group.clear()
 
         for group in group_list:
-            ltype0, line0 = group[0]
 
-            for ltype, line in group:
-                #do something to add line to previous line when line is just continuous content to previous
-                #for i0 in range(len(group)):
-                #    for i1 in range(len(group)):
-                #    i1 = i0 + 1
-                #    if i1 >= len(group):
-                #        break
-                #    ltype0, line0 = group[i0]
-                #    ltype1, line1 = group[i1]
+            group_new = []
+            for i0 in range(len(group)):
+                ltype0, line0 = group[i0]
+                if (ltype0)==0:
+                    continue
+                for i1 in range(len(group)):
+                    ltype1, line1 = group[i1]
+                    if len(ltype1)==0:
+                        line0 = line0 + "\n" + line1
+                    else:
+                        break
+                group_new.append([ltype0,line0])
+
+            print("==")
+            for ltype, line in group_new:
+                print(f"{ltype:15}",line)
+            continue
 
             if ltype0=='class':
                 class_path = ""
                 class_comment = ""
-                for ltype, line in group:
+                for ltype, line in group_new:
                     if ltype=='path':    class_path = line
                     if ltype=='comment': class_comment = line
                 set_class(line0,class_path=class_path,class_comment=class_comment)
-
             elif ltype0[:5]=='method':
                 acc_spec = ltype0[:7]
-                for ltype, line in group:
+                for ltype, line in group_new:
                     method_source = ""
                     if ltype=='source': method_source = line
                 add_method(line0, acc_spec=acc_spec, method_source = method_source)
-
             elif ltype0[:3]=='par':
                 acc_spec = ltype0[:4]
-                for ltype, line in group:
+                for ltype, line in group_new:
                     par_lname  = ""
                     par_gname  = ""
                     par_setter = ""
@@ -171,7 +179,7 @@ class lilakcc:
                     if ltype=='clear':  par_clear  = line
                     if ltype=='print':  par_print  = line
                     if ltype=='source': par_source = line
-                self.add_par(line0, lname=par_lname, gname=par_gname, acc_spec=acc_spec,
+                self.add_par(line0, acc_spec=acc_spec, lname=par_lname, gname=par_gname,
                         par_setter=par_setter, par_getter=par_getter,
                         par_init=par_init, par_clear=par_clear,
                         par_print=par_print, par_source=par_source)
@@ -203,23 +211,27 @@ class lilakcc:
     
 ###########################################################################################################################################
     def add_method(self, line, acc_spec="public", method_source=""):
-        pass
+        def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments = self.break_line(lines)
+        self.make_method(def_method=def_method, func_type=func_type, func_name=func_name, func_arguments=func_arguments,
+                         func_const=func_const, func_init=func_init, func_content=func_content, func_comments=func_comments)
         if acc_spec=="public":
             self.method_header_list[0].append(method_header)
-            self.method_source_list[0].append(method_source)
+            if len(method_source)>=0: self.method_source_list[0].append(method_source)
         if acc_spec=="protected":
             self.method_header_list[1].append(method_header)
-            self.method_source_list[1].append(method_source)
+            if len(method_source)>=0: self.method_source_list[1].append(method_source)
         if acc_spec=="private":
             self.method_header_list[2].append(method_header)
-            self.method_source_list[2].append(method_source)
-        
+            if len(method_source)>=0: self.method_source_list[2].append(method_source)
+
 ###########################################################################################################################################
-    def add_par(self, lines, lname="public", gname=par_gname, acc_spec=acc_spec,
+    def make_method(self, def_method, func_type, func_name, func_arguments, func_const, func_init, func_content, func_comments):
         pass
-                par_setter=par_setter, par_getter=par_getter,
-                par_init=par_init, par_clear=par_clear,
-                par_print=par_print, par_source=par_source)
+
+###########################################################################################################################################
+    def add_par(self, lines, 
+                acc_spec="", lname="", gname="", par_setter="", par_getter="",
+                par_init="", par_clear="", par_print="", par_source=""):
         """ add parameter
         lines               -- Input contents
         lname = ""          -- Local name to be used inside the block
@@ -407,16 +419,16 @@ class lilakcc:
 
 ###########################################################################################################################################
 
-    def this_line_is_method(self,line):
+    def check_method_or_par(self,line):
         ic1 = line.find("//")
-        if ic1>=0: return False
-        line_before_cb = line[:icb1].strip() if line.find("{")>0 else line
+        #if ic1==0: return False
+        line_before_cb = line[:ic1].strip() if line.find("{")>0 else line
         ib1 = line_before_cb.find("(")
         ieq = line_before_cb.find("=")
         if ib1<0 or (ieq>0 and ieq<ib1): return False
         else: return True
 
-    def break_line(self,lines,print_title=True):
+    def break_line(self,lines):
         """
         Break input line into
         * method:    type, name, argument, const, (init/content), comments
