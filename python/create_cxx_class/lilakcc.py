@@ -15,18 +15,16 @@ class lilakcc:
             [x] check_method_or_par(self,line):
             [x] break_line(self,lines)
             [x] add_method(self,line, acc_spec, method_source)
-            [-] make_method(self, func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments)
-
-        [-] add_par(self,line, lname, gname, acc_spec,
-                    par_setter, par_getter,
-                    par_init, par_clear,
-                    par_print, par_source)
-        [x] add_par2(self,par_type, par_name, par_init_val, par_comment, par_name_lc, par_persistency,
-                     set_type, set_name, set_class_comment,
-                     get_type, get_name, get_comment, get_is_const, acc_spec,
-                     includes, use_fname):
+                [x] make_method(self, line, is_header=True, is_source=False)
+            [x] add_par(self,line, lname, gname, acc_spec, par_setter, par_getter, par_init, par_clear, par_print, par_source)
+                [x] make_par(self, par_type, par_name, par_init, par_comments)
+            [x] add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="",
+                    single_data_name="data", data_array_comment="")
+            [x] add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data",
+                    data_array_init_size=0, data_array_comment="", data_persistency=True):
 
         [x] make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True)
+        [x] include_headers(self,includes):
     """
 
     def __init__(self,name=""):
@@ -85,13 +83,73 @@ class lilakcc:
 
 ###########################################################################################################################################
     def add(self, input_lines):
-        """ Make funciton from line"""
+        """ Make funciton from line
+        Add class, parameter or methods by line
+        You may use main keywords to notify the start of the group:
+            +class     -- add class
+            +idata     -- add input data container
+            +odata     -- add output data container
+            +include   -- add headers to be included
+            +private   -- add parameter or method as private
+            +protected -- add parameter or method as protected
+            +public    -- add parameter or method as public
+
+        When defining parameter or method identifying parameter/method will be done automatically.
+        Multiline definitions are also allowed. ex):
+            +include TNothing.h
+            +class TEveryting
+            +data TMyData myData("")
+            +private double parameter = 0.08;
+            +public
+            double DoSomething(double value1, double value2) {
+                fValue += value1;
+                fValue -= value2;
+                return fValue;
+            }
+
+        Sub-keywords exist to support parameter and method definitions.
+
+        Sub-keywords for input/output data container:
+            +gname  -- set global data container array name
+            +lname  -- set local  data container array name
+            +bname  -- set parameter name to be registered or registered as branch name
+            +pname  -- set local single data container name
+            +size   -- set initial size of the data container array
+            +persis -- set persistency of branch (True or False). Default is True
+        ex):
+            +odata auto fMyDataArray = TClonesArray("TMyData",100)
+            +lname myDataArray
+            +bname firstData
+            +pname myData
+
+        Sub-keywords for parameter:
+            +gname  -- set global parameter name
+            +lname  -- set local  parameter name
+            +pname  -- set parameter name to be used in the parameter container
+            +persis -- set persistency of parameter (True or False). Default is True
+            +setter -- set setter
+            +getter -- set getter
+            +source -- set content to be included in the Constructor of LKTask
+            +init   -- set content to be included in the Init() method of LKTask
+            +clear  -- set content to be included in the Clear() method of LKTask
+            +print  -- set content to be included in the Print() method of LKTask
+            +copy   -- set content to be included in the Copy() method of LKTask
+        ex):
+            +private TParameter<double> fParameter1 = 0.08;
+            +source fParameter1 = new TParameter<double>({pname},-9.99)
+            +pname parameter1
+            +init fParameter1 -> SetVal({parc} -> GetParString({pname}))
+            +clear fParameter1 -> SetVal(-9.99)
+
+        Sub-keyword for method:
+            source -- set method to be written in the source
+        """
 
         group = []
         group_list = []
         list_line = input_lines.splitlines()
-        list_complete = ["class", "private", "protected", "public"]
-        list_components = ["gname", "lname", "setter", "getter", "init", "clear", "source", "print"]
+        list_complete = ["class", "idata", "odata", "include", "private", "protected", "public"]
+        list_components = ["gname", "lname", "pname", "bname", "persis", "setter", "getter", "init", "clear", "source", "print", "copy"]
 
         is_method = True
         head_is_found = False
@@ -157,35 +215,83 @@ class lilakcc:
                     if ltype=='path':    class_path = line
                     if ltype=='comment': class_comment = line
                 self.set_class(line0,class_path=class_path,class_comment=class_comment)
-            elif is_method:
-                acc_spec = ltype0
+
+            elif ltype0=='idata':
+                idata_gname = ""
+                idata_lname = ""
+                idata_pname = ""
+                idata_bname = ""
                 for ltype, line in group_new:
                     method_source = ""
+                    if ltype=='gname': idata_gname = line
+                    if ltype=='lname': idata_lname = line
+                    if ltype=='pname': idata_pname = line
+                    if ltype=='bname': idata_bname = line
+                    if ltype=='comment': idata_comment = line
+                da_name, d0_class, da_size = self.break_data_array(line0)
+                add_input_data_array(self, data_class=0_class, data_array_gname=idata_pname,
+                        data_array_bname=idata_bname, data_array_lname=idata_lname,
+                        single_data_name=idata_pname, data_array_comment=idata_comment)
+
+            elif ltype0=='odata':
+                odata_gname = ""
+                odata_lname = ""
+                odata_pname = ""
+                odata_bname = ""
+                odata_persis = True
+                for ltype, line in group_new:
+                    if ltype=='gname':  odata_gname = line
+                    if ltype=='lname':  odata_lname = line
+                    if ltype=='pname':  odata_pname = line
+                    if ltype=='bname':  odata_bname = line
+                    if ltype=='comment': odata_comment = line
+                    if ltype=='persis': odata_persis = (True if (line.strip().lower())=="true" else False)
+                da_name, d0_class, da_size = self.break_data_array(line0)
+                add_output_data_array(self, data_class=0_class, data_array_gname=idata_pname,
+                        data_array_bname=idata_bname, data_array_lname=idata_lname,
+                        single_data_name=idata_pname, data_array_comment=idata_comment, data_persistency=odata_persis)
+
+            elif ltype0=='include':
+                self.include_headers(line)
+
+            elif is_method:
+                acc_spec = ltype0
+                method_source = ""
+                for ltype, line in group_new:
                     if ltype=='source': method_source = line
                 self.add_method(line0, acc_spec=acc_spec, method_source = method_source)
+
             else:
                 acc_spec = ltype0
+                par_gname  = ""
+                par_lname  = ""
+                par_pname  = ""
+                par_persis = True
+                par_setter = ""
+                par_getter = ""
+                par_init   = ""
+                par_clear  = ""
+                par_print  = ""
+                par_copy  = ""
+                par_source = ""
                 for ltype, line in group_new:
-                    par_lname  = ""
-                    par_gname  = ""
-                    par_setter = ""
-                    par_getter = ""
-                    par_init   = ""
-                    par_clear  = ""
-                    par_print  = ""
-                    par_source = ""
-                    if ltype=='lname':  par_lname  = line
                     if ltype=='gname':  par_gname  = line
+                    if ltype=='lname':  par_lname  = line
+                    if ltype=='pname':  par_pname  = line
+                    if ltype=='persis': par_persis = (True if (line.strip().lower())=="true" else False)
                     if ltype=='setter': par_setter = line
                     if ltype=='getter': par_getter = line
                     if ltype=='init':   par_init   = line
                     if ltype=='clear':  par_clear  = line
                     if ltype=='print':  par_print  = line
+                    if ltype=='copy':   par_copy  = line
                     if ltype=='source': par_source = line
-                self.add_par(line0, acc_spec=acc_spec, lname=par_lname, gname=par_gname,
+                self.add_par(line0, acc_spec=acc_spec,
+                        gname=par_gname, lname=par_lname,
+                        pname=par_pname, par_persis=par_persis, 
                         par_setter=par_setter, par_getter=par_getter,
                         par_init=par_init, par_clear=par_clear,
-                        par_print=par_print, par_source=par_source)
+                        par_print=par_print, par_copy=par_copy, par_source=par_source)
 
 ###########################################################################################################################################
     def set_class(self, line, class_path="", class_comment=""):
@@ -214,28 +320,24 @@ class lilakcc:
     
 ###########################################################################################################################################
     def add_method(self, line, acc_spec="public", method_source=""):
-
-        is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments = self.break_line(line)
-
-        method_header = self.make_method(method_type=method_type, method_name=method_name, method_arguments=method_arguments,
-                method_const=method_const, method_init=method_init, method_contents=method_contents, method_comments=method_comments)
+        if len(method_source)==0: method_source = line
+        method_header = self.make_method(line,         is_header=True)
+        method_source = self.make_method(method_source,is_source=True)
 
         ias = {"public" : 0, "protected": 1, "private" : 2}.get(acc_spec, -1)
-
         self.method_header_list[ias].append(method_header)
-
-        if len(method_source)>=0: self.method_source_list[ias].append(method_source)
-
-        print("==", ias, method_header)
+        self.method_source_list[ias].append(method_source)
 
 ###########################################################################################################################################
-    def make_method(self, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments):
+    def make_method(self, line, is_header=True, is_source=False, in_line=False):
+        is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line)
+
         line_const = f" const" if len(method_const)>0 else ""
         line_arguments = "(" + method_arguments + ")" if len(method_arguments)>0 else ""
         if len(method_init)>0:
             line_content = " = " + method_init + ";"
         elif len(method_contents)>0:
-            if method_contents.find("\n")>=0:
+            if method_contents.find("\n")>=0 or is_source:
                 line_content = "{\n" + method_contents + "\n}"
             else:
                 line_content = " { " + method_contents + " }"
@@ -247,204 +349,233 @@ class lilakcc:
 
 ###########################################################################################################################################
     def add_par(self, lines, 
-                acc_spec="public", lname="", gname="", par_setter="", par_getter="",
-                par_init="", par_clear="", par_print="", par_source=""):
+                acc_spec="public",
+                gname="", lname="", pname="", par_persis=True,
+                par_setter="", par_getter="",
+                par_init="", par_clear="", par_print="", par_copy="",
+                par_source=""):
         """ add parameter
         lines               -- Input contents
         acc_spec = "public" -- Access specifier: one of "public", protected", "private"
-        lname = ""          -- Local name to be used inside the block
-        gname = ""          -- Global(Field) name used through class. Default is f[lname] if not set.
+        gname = ""          -- Global(Field) name used through class. Default : f[lname]
+        lname = ""          -- Local name to be used inside the block. 
+        pname = ""          -- Parameter name to be used in the parameter container
+        par_persis = True   -- Persistency of the parameter (do or do not write in the root file)
         par_setter = ""     -- Contents to be add as Getter.
         par_getter = ""     -- Contents to be add as Setter.
         par_init = ""       -- Contents to be add in the Init() method.
         par_clear = ""      -- Contents to be add in the Clear() method.
         par_print = ""      -- Contents to be add in the Print() method.
+        par_copy = ""       -- Contents to be add in the Copy() method.
         par_source = ""     -- Contents to be add in the class constructor.
         """
 
-        is_method, par_type, par_name, par_arguments, par_const, par_init, par_contents, par_comments = self.break_line(line)
+        is_method, par_type, par_name, par_arguments, par_const, par_initv, par_contents, par_comments, comment_type = self.break_line(lines)
+        ias = {"public":0, "protected":1, "private":2}.get(acc_spec, -1)
 
-        par_header = self.make_par(par_type=par_type, par_name=par_name, par_arguments=par_arguments,
-                 par_init=par_init, par_comments=par_comments)
-
-        ias = {"public" : 0, "protected": 1, "private" : 2}.get(acc_spec, -1)
-
-        #self.method_header_list[ias].append(method_header)
-        #if len(method_source)>=0: self.method_source_list[ias].append(method_source)
-
-        
-###########################################################################################################################################
-    def add_par2(self,
-                par_type, par_name, par_init_val, par_comment="", par_name_lc="", par_persistency = True,
-                set_type="", set_name="", set_comment="",
-                get_type="", get_name="", get_comment="", get_is_const=True, acc_spec="public",
-                includes="", use_fname=True):
-        """ Add parameter
-        par_type     (string)       -- Type of parameter
-        par_name     (string)       -- Name of parameter
-        par_init_val (string ; "")  -- Initial parameter value. If par_init_val is empty string(""), it will not be initialized
-                                       However it is highly recommended that to give initial parameter value to a value that is unlikely to be given.
-                                       This will help you in debugging in the analysis step.
-        par_name_lc  (string ; "")  -- Local parameter name. By defualt, = par_name or par_name + "_"
-        par_comment  (string ; "")  -- Comment to parameter.
-        set_type     (string ; "")  -- Setter input type. By defualt, = par_type
-        set_name     (string ; "")  -- Setter name. By defualt, = Set + par_name[0].title()+par_name[1:]
-        set_comment  (string ; "")  -- Comment to setter
-        get_type     (string ; "")  -- Getter type. By defualt, = par_type
-        get_name     (string ; "")  -- Getter name. By defualt, = Get + par_name[0].title()+par_name[1:]
-        get_comment  (string ; "")  -- Comment to getter
-        get_is_const (bool ; True)  -- Set True if getter is const
-        acc_spec     (string ; "public") -- Choose access specifier from ("public", "protected", "private")
-        includes     (string ; "")  -- Headers to include (separated by space of line-break)
-        use_fname    (bool ; True)  -- By default, field (or member) parameter name will be set to
-                                       "f" + par_name[0].title()+par_name[1:]. Set use_fname to False if you wish
-                                       to use par_name itself.
-        return_addr  (bool ; True)  -- Return address of the parameter from Getter
-        """
-
-        is_method, func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments = self.break_line(line)
-
-        method_header = self.make_method(func_type=func_type, func_name=func_name, func_arguments=func_arguments,
-                func_const=func_const, func_init=func_init, func_contents=func_contents, func_comments=func_comments)
-
-        if   acc_spec=="public":     ppp_index = 0
-        elif acc_spec=="private" :   ppp_index = 2
-        elif acc_spec=="protected" : ppp_index = 1
-        else:
-            print("ERROR5! from add_par, you should choose one of public_par, protected_par, private_par to be True!")
+        ############ general par name ############
+        if par_name[0]=="f" and par_name[1].isupper:
+            par_name = par_name[1:]
 
         ############ field parameter name ############
-        if use_fname:
-            if par_name[0]=="f" and par_name[1].isupper:
-                par_name = par_name[1:]
-            else:
-                par_name_field = "f" + par_name[0].title()+par_name[1:]
-        else:
-            par_name_field = par_name
-            if par_name[0]=="f" and par_name[1].isupper:
-                par_name = par_name[1:]
+        if len(gname)==0:
+            gname = "f" + par_name[0].title()+par_name[1:]
 
         ############ local parameter name ############
-        if len(par_name_lc)==0:
-            par_name_lc = par_name
-            if par_name_lc==par_name_field:
-                par_name_lc = par_name_lc + "_"
+        if len(lname)==0:
+            lname = par_name
+        if lname==gname:
+            print(f"WARNING! gname({gname}) and lname({lname}) are same! replacing lname to {lname}_.")
+            lname = lname + "_"
+
+        ############ parameter name in parameter container ############
+        if len(pname)==0:
+            pname = par_name
+
+        pname_comment = ""
+        if pname.find('#'):
+            pname_comment = pname[pname.find('#')+1:]
+
+        if isinstance(par_initv, str)==False: par_initv = str(par_initv)
+
+        use_par_init = False
+        if len(par_init)==0:
+            par_file_val = par_initv
+        else:
+            use_par_init = True
+            pname2 = par_init[:par_init.find(' ')]
+            par_init = par_init.replace("{pname}",pname)
+            if pname2!=pname:
+                print(f"WARNING! given pname({pname}) and pname2({pname2}) from par_init, are not same! replacing pname2 to {pname}.")
+                pname2 = {pname}
+                par_init = pname + ' ' + par_init[par_init.find(' '):]
 
         ############ parameter task init ############
-        if isinstance(par_init_val, str)==False: par_init_val = str(par_init_val)
-        init_val_is_clear = False
-        if par_init_val.find("{x}")>=0:
-            init_val_is_clear = True
-            par_init_val = par_init_val.replace("{x}",par_name_field)
-        par_file_val = par_init_val
 
-        par_task_init = par_name_field
-        par_getpar_comment = ""
-        if   par_type=="bool":     par_type_getpar = "Bool"
-        elif par_type=="int":      par_type_getpar = "Int"
-        elif par_type=="double":   par_type_getpar = "Double"
-        elif par_type=="Bool_t":   par_type_getpar = "Bool"
-        elif par_type=="Int_t":    par_type_getpar = "Int"
-        elif par_type=="Double_t": par_type_getpar = "Double"
-        elif par_type=="TString":  par_type_getpar = "String"
-        elif par_type=="const char*":  par_type_getpar = "String"
-        elif par_type=="Color_t":  par_type_getpar = "Color"
-        elif par_type=="Width_t":  par_type_getpar = "Width"
-        elif par_type=="Size_t":   par_type_getpar = "Size"
+        line_par_init_in_init = gname
+        line_par_comment_in_init = ""
+        if   par_type=="bool":        par_type_getpar = "Bool"
+        elif par_type=="int":         par_type_getpar = "Int"
+        elif par_type=="double":      par_type_getpar = "Double"
+        elif par_type=="float":       par_type_getpar = "Double"
+        elif par_type=="Bool_t":      par_type_getpar = "Bool"
+        elif par_type=="Int_t":       par_type_getpar = "Int"
+        elif par_type=="Double_t":    par_type_getpar = "Double"
+        elif par_type=="Float":       par_type_getpar = "Double"
+        elif par_type=="TString":     par_type_getpar = "String"
+        elif par_type=="const char*": par_type_getpar = "String"
+        elif par_type=="Color_t":     par_type_getpar = "Color"
+        elif par_type=="Width_t":     par_type_getpar = "Width"
+        elif par_type=="Size_t":      par_type_getpar = "Size"
         elif par_type=="TVector3":
             par_type_getpar = "V3"
             par_file_val = par_file_val[par_file_val.find('(')+1:par_file_val.find(')')]
             par_file_val = par_file_val.replace(',','  ')
         else:
-            par_getpar_comment = f"//TODO The type {par_type} is not featured with LKParameterContainer. Please modify Below:" 
+            line_par_comment_in_init = f"//TODO The type {par_type} is not featured with LKParameterContainer. Please modify Below:" 
             par_type_getpar = par_type
-        #par_task_init = f'//{par_name_field} = par -> GetPar{par_type_getpar}("{par_name_lc}");'
-        par_task_init = f'{par_name_field} = par -> GetPar{par_type_getpar}("{par_name_lc}");'
+        line_par_init_in_init = f'{gname} = par -> GetPar{par_type_getpar}("{pname}");'
 
         ############ parameter definition ############
         init_from_header = True
-        if init_val_is_clear:
+        if use_par_init:
             init_from_header = False
-        elif len(par_init_val)==0:
+        elif len(par_initv)==0:
             init_from_header = False
-        elif par_init_val.find('->')>0:
+        elif par_initv.find('->')>0:
             init_from_header = False
-        elif par_init_val.find('.')>0:
-            if par_init_val[par_init_val.find('.')+1].isdigit()==False:
+        elif par_initv.find('.')>0:
+            if par_initv[par_initv.find('.')+1].isdigit()==False:
                 init_from_header = False
 
-        if init_val_is_clear: line_parfile = f'#{par_name_lc} {par_file_val}'
-        else:                 line_parfile = f'{par_name_lc} {par_file_val}'
-        if init_from_header: par_def = f'{par_type} {par_name_field} = {par_init_val};'
-        else:                par_def = f'{par_type} {par_name_field};'
-        par_def = self.make_doxygen_comment(par_comment,par_def,is_persistence=par_persistency)
+        if init_from_header: line_par_definition = f'{par_type} {gname} = {par_initv};'
+        else:                line_par_definition = f'{par_type} {gname};'
+        line_par_definition = self.make_doxygen_comment(par_comments,line_par_definition,is_persistence=par_persis)
+
+        if use_par_init:     line_par_in_par_container = f'{par_init}'
+        else:                line_par_in_par_container = f'{pname} {par_file_val}'
+        line_par_definition = self.make_doxygen_comment(pname_comment,line_par_in_par_container,comment_type="#")
 
         ############ parameter clear ############
-        if init_val_is_clear:
-            par_clear = f'{par_init_val};';
-        elif len(par_init_val)>0:
-            par_clear = f'{par_name_field} = {par_init_val};';
+        if len(par_clear)==0:
+            if use_par_init:
+                line_par_in_clear = f'{par_initv};';
+            elif len(par_initv)>0:
+                line_par_in_clear = f'{gname} = {par_initv};';
+            else:
+                line_par_in_clear = f'{gname};';
         else:
-            par_clear = f'{par_name_field};';
+            line_par_in_clear = make_method(par_clear.replace("{gname}",gname), in_line=True)
 
         ############ parameter print ############
-        if par_type=="bool" or par_type=="int" or par_type=="double" or par_type=="Bool_t" or par_type=="Int_t" or par_type=="Double_t" or par_type=="TString" or par_type=="const char*":
-            par_print = f'lx_info << "{par_name} : " << {par_name_field} << std::endl;'
+        if len(par_print)==0:
+            if par_type in ["bool", "int", "double", "float", "Bool_t", "Int_t", "Double_t", "Float_t", "TString", "const char*"]:
+                line_par_in_print = f'lx_info << "{par_name} : " << {gname} << std::endl;'
+            else:
+                line_par_in_print = f'//lx_info << "{par_name} : " << {gname} << std::endl;'
         else:
-            par_print = f'//lx_info << "{par_name} : " << {par_name_field} << std::endl;'
+            line_par_in_print = self.make_method(par_print.replace("{gname}",gname), in_line=True)
 
         ############ settter definition ############
-        if len(set_type)==0: set_type = par_type
-        if len(set_name)==0: set_name = "Set" + par_name[0].title()+par_name[1:]
-        set_full = self.make_function("void", set_name, f"{set_type} {par_name_lc}", f"{par_name_field} = {par_name_lc};", 0, set_comment, in_line=True)
+        if len(par_setter)==0:
+            set_type = par_type
+            set_name = "Set" + par_name[0].title()+par_name[1:]
+            line_set_par = self.make_method(f"void {set_name} {set_type} {lname} {gname} = {lname};", in_line=True)
+        else:
+            line_set_par = self.make_method(par_setter.replace("{gname}",gname), in_line=True)
+            is_method, set_type, set_name, dp, dp, dp, dp, dp, dp = self.break_line(line_set_par)
   
         ############ gettter definition ############
-        if len(get_type)==0: get_type = par_type
-        if len(get_name)==0: get_name = "Get" + par_name[0].title()+par_name[1:]
-        #get_full = self.make_function(get_type, get_name, "", f"return {par_name_field};", 0, get_comment, func_is_const=get_is_const, in_line=True)
-        if return_addr:
-            get_full = self.make_fline(f"{get_type} *{get_name}() " +"{"+ f"return &{par_name_field};"+"}", in_line=True)
+        if len(par_getter)==0:
+            get_type = par_type
+            get_name = "Get" + par_name[0].title()+par_name[1:]
+            line_get_par = self.make_method(f"{get_type} {get_name}() const " +"{"+ f"return {gname};"+"}", in_line=True)
         else:
-            get_full = self.make_fline(f"{get_type} {get_name}() const " +"{"+ f"return {par_name_field};"+"}", in_line=True)
+            line_get_par = self.make_method(par_getter.replace("{gname}",gname), in_line=True)
   
         ############ parameter copy ############
-        par_copy = f"objCopy.{set_name}({par_name_field})"
+        if len(par_copy)==0:
+            line_par_in_copy = f"objCopy.{set_name}({gname})"
+        else:
+            line_par_in_copy = self.make_method(par_copy.replace("{gname}",gname), in_line=True)
 
-        ############ gettter definition ############
-        if len(par_getpar_comment)!=0:
-            self.par_init_list.append(par_getpar_comment);
-        self.par_init_list.append(par_task_init);
-        self.par_clear_list.append(par_clear);
-        self.par_print_list.append(par_print);
-        self.par_copy_list.append(par_copy);
-        self.par_def_list[ppp_index].append(par_def);
-        self.set_full_list[0].append(set_full);
-        self.get_full_list[0].append(get_full);
+        ############  ############  ############
+        if len(line_par_comment_in_init)!=0:
+            self.par_init_list.append(line_par_comment_in_init);
+        self.par_init_list.append(line_par_init_in_init);
+        self.par_clear_list.append(line_par_in_clear);
+        self.par_print_list.append(line_par_in_print);
+        self.par_copy_list.append(line_par_in_copy);
+        self.par_def_list[ias].append(line_par_definition);
+        self.set_full_list[0].append(line_set_par);
+        self.get_full_list[0].append(line_get_par);
+        self.parfile_lines.append(line_par_in_par_container)
 
-        ############ include includes ############
-        self.include_headers(includes)
 
-        ############ parameter container file ############
-        self.parfile_lines.append(line_parfile)
+###########################################################################################################################################
+    def make_par(self, line):
 
-    def make_fline(self, func_full, func_comment="", tab_no=-1, is_source=False, is_header=False, omit_semicolon=False, in_line=False):
+        is_method, par_type, par_name, par_arguments, par_const, par_init, par_contents, par_comments, comment_type = self.break_line(lines)
+        par_header = self.make_par(par_type=par_type, par_name=par_name, par_init=par_init, par_comments=par_comments)
+        ias = {"public":0, "protected":1, "private":2}.get(acc_spec, -1)
+        print("==", ias, par_header)
+
+        line_init = f" = {par_init}" if len(par_init)>0 else ""
+        line = f"{par_type} {par_name}{line_init};"
+        line = self.make_doxygen_comment(par_comments,line)
+        return line
+        
+###########################################################################################################################################
+    def make_fline(self, func_full, comment="", tab_no=-1, is_source=False, is_header=False, in_line=False, omit_semicolon=False):
         """Make funciton from line"""
-        is_method, func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments2 = self.break_line(func_full)
+        is_method, func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments2, comment_type = self.break_line(func_full)
 
-        if   len(func_comment)==0 and len(func_comment2)!=0: func_comment = func_comment2
-        elif len(func_comment)!=0 and len(func_comment2)==0: pass
-        elif len(func_comment)!=0 and len(func_comment2)!=0: func_comment = func_comment + '\n' + func_comment2
+        if   len(comment)==0 and len(func_comment2)!=0: comment = func_comment2
+        elif len(comment)!=0 and len(func_comment2)==0: pass
+        elif len(comment)!=0 and len(func_comment2)!=0: comment = comment + '\n' + func_comment2
 
         if   tab_no<-1 and tab_no2>=0: tab_no = tab_no2
         elif tab_no>=0: tab_no = tab_no
         else: tab_no = 0
 
-        return make_function(func_type=func_type, func_name=func_name, func_arguments=func_arguments,
-            func_contents=func_contents, tab_no=0, func_comment=func_comment, func_const=func_const,
-            is_header=is_header, is_source=is_source, omit_semicolon=omit_semicolon, in_line=in_line)
+        if is_source and func_name.find("::")<0: func_full = self.name + "::" + func_name + "(" + func_arguments + ")"
+        else:                                    func_full = func_name + "(" + func_arguments + ")"
+
+        if len(func_type)>0: func_full = ' '*(self.tab_size*tab_no) + func_type + " " + func_full
+        else:                func_full = ' '*(self.tab_size*tab_no) + func_full
+
+        if (func_is_const):
+            func_full = func_full + " const"
+
+        lines = func_contents.split('\n')
+
+        just_define = False
+        mult_line = False
+        if in_line==True: pass
+        elif is_header:             just_define = True
+        elif is_source:             mult_line = True
+        elif len(func_contents)==0: just_define = True
+        else:                       mult_line = True
+
+        if just_define:
+            if omit_semicolon==False:
+                func_full = func_full + ";"
+        elif mult_line:
+            if func_contents=="":
+                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "{"
+                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "}"
+            else:
+                for i in range(len(lines)):
+                    lines[i] = ' '*(self.tab_size*(tab_no+1)) + lines[i]
+                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "{"
+                func_full = func_full + '\n' + '\n'.join(lines)
+                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "}"
+        else:
+            if func_contents.isspace():  func_full =  func_full + " {}"
+            else:                       func_full =  func_full + " { " + func_contents + " }"
+        return self.make_doxygen_comment(comment, func_full)
 
 ###########################################################################################################################################
-
     def check_method_or_par(self,line):
         ic1 = line.find("//")
         #if ic1==0: return False
@@ -454,12 +585,30 @@ class lilakcc:
         if ib1<0 or (ieq>0 and ieq<ib1): return False
         else: return True
 
+###########################################################################################################################################
+    def break_data_array(self,lines):
+        pre_and_name, tclonesarray_def = lines[:lines.find("=")].strip(), lines[lines.find("=")+1:].strip()
+
+        ispace = pre_and_name.find(" ")
+        if space<0: da_name = pre_and_name
+        else:       da_name = pre_and_name[space:].strip()
+
+        tclonesarray_def = tclonesarray_def[tclonesarray_def.find("(")+1:tclonesarray_def.rfind(")")]
+        arguments = tclonesarray_def.split(',')
+
+        d0_class = arguments[0]
+        d0_class = d0_class[d0_class.find('"')+1:d0_class.rfind('"')]
+        da_size = int(arguments[1])
+
+        return da_name, d0_class, da_size
+
+###########################################################################################################################################
     def break_line(self,lines):
         """
         Break input line into
         * method:    type, name, argument, const, (init/content), comments
         * parameter: type, name, init
-        return True(method)/False(parameter), type, name, argument, True(const)/False() init, content, comments
+        return True(method)/False(parameter), type, name, arguments, "const"/"", init, contents, comments, comment_type
         """
         ################################################### precomment
         comment_list = []
@@ -472,25 +621,25 @@ class lilakcc:
         # 3: ///<
         # 4: ///<!
         # 5: //!
-        comment_type = 0
+        comment_type = ""
         while ic1>=0:
             if ic1==line_inprocess.find("///<!"):
                 func_linec = line_inprocess[ic1+5:]
                 false_persistency = True
-                comment_type = 4
+                comment_type = "///<!"
             elif ic1==line_inprocess.find("//!"):
                 func_linec = line_inprocess[ic1+3:]
                 false_persistency = True
-                comment_type = 5
+                comment_type = "//!"
             elif ic1==line_inprocess.find("///<"):
                 func_linec = line_inprocess[ic1+4:]
-                comment_type = 3
+                comment_type = "///<"
             elif ic1==line_inprocess.find("///"):
                 func_linec = line_inprocess[ic1+3:]
-                comment_type = 2
+                comment_type = "///"
             else:
                 func_linec = line_inprocess[ic1+2:]
-                comment_type = 1
+                comment_type = "//"
             line_inprocess = line_inprocess[:ic1]
             comment_list.append(func_linec)
             ic1 = line_inprocess.find("//")
@@ -600,63 +749,9 @@ class lilakcc:
 
         func_comments = '\n'.join(comment_list)
 
-        return (True if is_method else False), func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments
+        return (True if is_method else False), func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments, comment_type
 
-    def make_function(self,
-            func_type, func_name, func_arguments,
-            func_contents="", tab_no=0, func_comment="", func_const="",
-            is_header=False, is_source=False, omit_semicolon=False, in_line=False):
-        """Make c++ function with given parameters
-        func_type       (string) -- data type of function
-        func_name       (string) -- name of the function
-        func_arguments  (string) -- input parameters of function
-        func_contents    (string; "") -- content of the function
-        tab_no          (string ; 0) -- number of tabs (indents) of the function
-        func_comment    (string ; "") -- comment of the function
-        func_const      (string ; "") -- "const" if const function
-        is_header       (bool ; False) -- Make header file
-        is_source       (bool ; False) -- Make source file
-        in_line         (bool ; False) -- Make function in-line
-        omit_semicolon  (bool ; False) -- Omit ";"
-        """
-        if is_source and func_name.find("::")<0: func_full = self.name + "::" + func_name + "(" + func_arguments + ")"
-        else:                                    func_full = func_name + "(" + func_arguments + ")"
-
-        if len(func_type)>0: func_full = ' '*(self.tab_size*tab_no) + func_type + " " + func_full
-        else:                func_full = ' '*(self.tab_size*tab_no) + func_full
-
-        if (func_is_const):
-            func_full = func_full + " const"
-
-        lines = func_contents.split('\n')
-
-        just_define = False
-        mult_line = False
-        if in_line==True: pass
-        elif is_header:             just_define = True
-        elif is_source:             mult_line = True
-        elif len(func_contents)==0:  just_define = True
-        else:                       mult_line = True
-
-        if just_define:
-            if omit_semicolon==False:
-                func_full = func_full + ";"
-        elif mult_line:
-            if func_contents=="":
-                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "{"
-                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "}"
-            else:
-                for i in range(len(lines)):
-                    lines[i] = ' '*(self.tab_size*(tab_no+1)) + lines[i]
-                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "{"
-                func_full = func_full + '\n' + '\n'.join(lines)
-                func_full = func_full + '\n' + ' '*(self.tab_size*tab_no) + "}"
-        else:
-            if func_contents.isspace():  func_full =  func_full + " {}"
-            else:                       func_full =  func_full + " { " + func_contents + " }"
-        return self.make_doxygen_comment(func_comment, func_full)
-
-    def make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True):
+    def make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True, comment_type=""):
         """Make doxygen comment
 
         add_to (string) -- If add_to parameter is set True, comment will be put after (before)
@@ -664,6 +759,16 @@ class lilakcc:
         always_mult_line (bool) -- The comments are assumed that it is multi-line and use /** [...] */
         not_for_doxygen (bool) -- If True: /** -> /*, ///< -> //
         """
+        if comment_type.strip()=="#":
+            always_mult_line = False
+
+        multi_line_comment = False
+        single_line_comment = False
+        if always_mult_line or "\n" in comment or "\r\n" in comment:
+            multi_line_comment = True
+        else:
+            single_line_comment = True
+
         if is_persistence and len(comment)==0:
             return add_to
         else:
@@ -672,16 +777,17 @@ class lilakcc:
                 for i in range(len(lines)):
                     lines[i] = ' * ' + lines[i]
                 else:
-                    if (not_for_doxygen): lines.insert(0,"/*")
+                    if not_for_doxygen: lines.insert(0,"/*")
                     else:                 lines.insert(0,"/**")
                     lines.append(" */")
                 comment = '\n'.join(lines)
                 return comment + add_to
             else:
-                if is_persistence:
-                    comment = " ///< " + comment;
-                else:
-                    comment = " ///<! " + comment;
+                if len(comment_type)!=0:
+                    if   not_for_doxygen: comment_type = "//"
+                    elif is_persistence:  comment_type = "///<"
+                    else:                 comment_type = "///<!"
+                comment = " " + comment_type + " " + comment;
                 return add_to + comment
 
     def include_headers(self,includes):
@@ -703,88 +809,71 @@ class lilakcc:
             elif header[:2]=="LK":  self.include_lilak_list.append(header_full)
             else:                   self.include_other_list.append(header_full)
 
-    def add_input_data_array(self,
-                             data_class, data_array_name, data_array_branch_name,
-                             data_array_comment="", data_array_name_lc="", data_name="data",
-                             includes="", use_fname=True):
+    def add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", data_array_comment=""):
         ############ field name ############
-        if use_fname:
-            if data_array_name[0]=="f" and data_array_name[1].isupper:
-                par_name = par_name[1:]
-            else:
-                data_array_name_field = "f" + data_array_name[0].title()+data_array_name[1:]
+        if data_array_gname[0]=="f" and data_array_gname[1].isupper:
+            par_name = par_name[1:]
         else:
-            data_array_name_field = data_array_name
-            if data_array_name[0]=="f" and data_array_name[1].isupper:
-                par_name = par_name[1:]
+            data_array_name_field = "f" + data_array_gname[0].title()+data_array_gname[1:]
 
         ############ local name ############
-        if len(data_array_name_lc)==0:
-            data_array_name_lc = data_array_name
-            if data_array_name_lc==data_array_name_field:
-                data_array_name_lc = data_array_name_lc + "_"
+        if len(data_array_lname)==0:
+            data_array_lname = data_array_gname
+            if data_array_lname==data_array_name_field:
+                data_array_lname = data_array_lname + "_"
 
-        self.data_init_list.append(f'fTrackArray = run -> GetBranchA("{data_array_branch_name}");')
+        self.data_init_list.append(f'fTrackArray = run -> GetBranchA("{data_array_bname}");')
 
-        num_data = "num" + data_array_branch_name[0].title()+data_array_branch_name[1:]
-        i_data = "i" + data_array_branch_name[0].title()+data_array_branch_name[1:]
+        num_data = "num" + data_array_bname[0].title()+data_array_bname[1:]
+        i_data = "i" + data_array_bname[0].title()+data_array_bname[1:]
         tab1 = ' '*(self.tab_size*1)
         self.data_exec_list.append(f"""
-//Call {data_name} from {data_array_name_field} and get data value
+//Call {single_data_name} from {data_array_name_field} and get data value
 int {num_data} = {data_array_name_field} -> GetEntriesFast();
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
-{tab1}auto *{data_name} = ({data_class} *) {data_array_name_field} -> At({i_data});
-{tab1}//auto value = {data_name} -> GetDataValue(); ...
+{tab1}auto *{single_data_name} = ({data_class} *) {data_array_name_field} -> At({i_data});
+{tab1}//auto value = {single_data_name} -> GetDataValue(); ...
 """+"}")
-        self.include_headers(includes)
 
 
-    def add_output_data_array(self,
-                              data_class, data_array_name, data_array_branch_name,
-                              data_array_init_size=0, data_array_comment="", data_array_name_lc="", data_name="data",
-                              data_persistency=True, includes="", use_fname=True):
+    def add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data",
+                              data_array_init_size=0, data_array_comment="", data_persistency=True):
         ############ field name ############
-        if use_fname:
-            if data_array_name[0]=="f" and data_array_name[1].isupper:
-                par_name = par_name[1:]
-            else:
-                data_array_name_field = "f" + data_array_name[0].title()+data_array_name[1:]
+        if data_array_gname[0]=="f" and data_array_gname[1].isupper:
+            par_name = par_name[1:]
         else:
-            data_array_name_field = data_array_name
-            if data_array_name[0]=="f" and data_array_name[1].isupper:
-                par_name = par_name[1:]
+            data_array_name_field = "f" + data_array_gname[0].title()+data_array_gname[1:]
 
         ############ persistency ############
         data_array_name_persis = data_array_name_field + "Persistency"
-        data_array_name_persis_lc = data_array_name_lc + "Persistency"
+        data_array_name_persis_lc = data_array_lname + "Persistency"
         self.add_private_par("bool", data_array_name_persis_lc, "true" if data_persistency else "false")
 
         ############ branch name ############
-        #if len(data_array_branch_name)==0: data_array_branch_name = data_array_name;
+        #if len(data_array_bname)==0: data_array_bname = data_array_gname;
 
         ############ local name ############
-        if len(data_array_name_lc)==0:
-            data_array_name_lc = data_array_name
-            if data_array_name_lc==data_array_name_field:
-                data_array_name_lc = data_array_name_lc + "_"
+        if len(data_array_lname)==0:
+            data_array_lname = data_array_gname
+            if data_array_lname==data_array_name_field:
+                data_array_lname = data_array_lname + "_"
 
         self.data_array_def_list.append(f"TClonesArray *{data_array_name_field} = nullptr;")
 
         if data_array_init_size>0: self.data_init_list.append(f'{data_array_name_field} = new TClonesArray("{data_class}");')
         else:                      self.data_init_list.append(f'{data_array_name_field} = new TClonesArray("{data_class}",{data_array_init_size});')
-        self.data_init_list.append(f'run -> RegisterBranch("{data_array_branch_name}", {data_array_name_field}, {data_array_name_persis});')
+        self.data_init_list.append(f'run -> RegisterBranch("{data_array_bname}", {data_array_name_field}, {data_array_name_persis});')
 
-        num_data = "num" + data_array_branch_name[0].title()+data_array_branch_name[1:]
-        i_data = "i" + data_array_branch_name[0].title()+data_array_branch_name[1:]
+        num_data = "num" + data_array_bname[0].title()+data_array_bname[1:]
+        i_data = "i" + data_array_bname[0].title()+data_array_bname[1:]
         tab1 = ' '*(self.tab_size*1)
         self.data_exec_list.append(f"""
-//Construct (new) {data_name} from {data_array_name_field} and set data value
+//Construct (new) {single_data_name} from {data_array_name_field} and set data value
 int {num_data} = {data_array_name_field} -> GetEntriesFast();
 for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
-{tab1}auto *{data_name} = ({data_class} *) {data_array_name_field} -> ConstructedAt({i_data});
-{tab1}//{data_name} -> SetData(value); ...
+{tab1}auto *{single_data_name} = ({data_class} *) {data_array_name_field} -> ConstructedAt({i_data});
+{tab1}//{single_data_name} -> SetData(value); ...
 """+"}")
-        self.include_headers(includes)
 
     def init_print(self):
         if os.path.exists(self.path)==False:
@@ -892,10 +981,10 @@ This notifiy users that the container has been update in the new LILAK (or side 
         self.par_copy_list.insert(2,f"auto objCopy = ({self.name} &) object;")
         copy_content = '\n'.join(self.par_copy_list)
 
-        source_constructor = self.make_function("", self.name, "", constructor_content, 0, is_source=True)
-        source_clear = self.make_function("void", "Clear", "Option_t *option", clear_content, 0, is_source=True)
-        source_print = self.make_function("void", "Print", "Option_t *option", print_content, 0, "", True, is_source=True)
-        source_copy = self.make_function ("void", "Copy",  "TObject &object",  copy_content, 0, "", True, is_source=True)
+        source_constructor = self.make_fline(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
+        source_clear = self.make_fline("void Clear(Option_t *option) const {b1}{clear_content}{b2}", 0, is_source=True)
+        source_print = self.make_fline("void Print(Option_t *option) const {b1}{print_content}{b2}", 0, is_source=True)
+        source_copy = self.make_fline ("void Copy (TObject  &object) const {b1}{ copy_content}{b2}", 0, is_source=True)
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
@@ -1029,9 +1118,9 @@ Or use print_example_comments=False option to omit printing
         self.data_exec_list.append(f'lk_info << "{self.name} container" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
-        source_constructor = self.make_function("", self.name, "", constructor_content, 0, is_source=True)
-        source_init = self.make_function("bool", "Init", "", init_content, 0, is_source=True)
-        source_exec = self.make_function("void", "Exec", "Option_t *option", exec_content, 0, "", True, is_source=True)
+        source_constructor = self.make_fline(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
+        source_init = self.make_fline(f"bool Init() {br1}{init_content}{br2}", 0, is_source=True)
+        source_exec = self.make_fline(f"void Exec(Option_t *option) const {br1}{exec_ontent}{br2}", 0, is_source=True)
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
