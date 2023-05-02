@@ -4,32 +4,36 @@ class lilakcc:
     """
     Write c++ class with source and header
     - methods:
-        [x] set_class(self,line0, acc_spec, method_source)
-            [x] set_file_name(self,name)
-            [x] set_file_path(self,file_path)
-            [x] set_class_comment(self, comment)
-            [x] add_inherit_class(self, inherit_acc_class)
-            [x] set_tab_size(self, tab_size)
 
         [x] add(self,input_lines)
-            [x] check_method_or_par(self,line):
-            [x] break_line(self,lines)
+            [x] set_class(self,line0, acc_spec, method_source)
+                [x] set_file_name(self,name)
+                [x] set_file_path(self,file_path)
+                [x] set_class_comment(self, comment)
+                [x] add_inherit_class(self, inherit_acc_class)
+                [x] set_tab_size(self, tab_size)
             [x] add_method(self,line, acc_spec, method_source)
                 [x] make_method(self, line, is_header=True, is_source=False)
             [x] add_par(self,line, lname, gname, acc_spec, par_setter, par_getter, par_init, par_clear, par_print, par_source)
                 [x] make_par(self, par_type, par_name, par_init, par_comments)
-            [x] add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="",
-                    single_data_name="data", data_array_comment="")
-            [x] add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data",
-                    data_array_init_size=0, data_array_comment="", data_persistency=True):
+            [x] add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="")
+            [x] add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment="", data_array_init_size=0, data_persistency=True):
 
+        [x] break_line(self,lines)
+        [x] check_method_or_par(self,line):
         [x] make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True)
         [x] include_headers(self,includes):
+
+        [x] make_container(self,input_lines)
+
+        [x] print_container(self,to_screen=False,to_file=True,print_example_comments=True,
+        [x] print_task(self,to_screen=False,to_file=True,print_example_comments=True):
+            [x] init_print(self):
     """
 
-    def __init__(self,name=""):
+    def __init__(self):
         # class
-        self.name = name
+        self.name = ""
         self.path = "./"
         self.comment = ""
         self.tab_size = 4
@@ -64,28 +68,34 @@ class lilakcc:
     def set_tab_size(self, tab_size):
         """Set tab size"""
         self.tab_size = tab_size
+        print("+{:20}: {}".format("Set tab size",tab_size))
 
     def set_file_name(self,name):
         """Set name of the class"""
         self.name = name
+        print("+{:20}: {}".format("Set class",name))
   
     def set_file_path(self,file_path):
         """Set path where files are created"""
         self.path = file_path
+        print("+{:20}: {}".format("Set file path",file_path))
 
     def set_class_comment(self, comment):
         """Description of the class"""
         self.comment = comment 
+        print("+{:20}: {}".format("Set class comment",comment))
 
     def add_inherit_class(self, inherit_acc_class):
         """Description of the class"""
         self.inherit_list.append(inherit_acc_class)
+        print("+{:20}: {}".format("Add inherit class",comment))
 
 ###########################################################################################################################################
     def add(self, input_lines):
-        """ Make funciton from line
+        """ # Make funciton from line
         Add class, parameter or methods by line
         You may use main keywords to notify the start of the group:
+            +path      -- set path to file
             +class     -- add class
             +idata     -- add input data container
             +odata     -- add output data container
@@ -95,11 +105,21 @@ class lilakcc:
             +public    -- add parameter or method as public
 
         When defining parameter or method identifying parameter/method will be done automatically.
-        Multiline definitions are also allowed. ex):
+        Multiline definitions are also allowed.
+        ex:
             +include TNothing.h
+
             +class TEveryting
-            +data TMyData myData("")
-            +private double parameter = 0.08;
+            +inherit public TSomething
+            +inherit public TAnything
+
+            +idata auto fMyData = new TClonesArray("TMyData",100)
+
+            +private double fValue1 = 0.01;
+            +private double fValue2 = 0.02;
+            +private double fValue3 = 0.03;
+            +private double fValue4 = 0.04;
+
             +public
             double DoSomething(double value1, double value2) {
                 fValue += value1;
@@ -109,20 +129,24 @@ class lilakcc:
 
         Sub-keywords exist to support parameter and method definitions.
 
-        Sub-keywords for input/output data container:
+        ### class sub-keywords:
+            +inherit -- inheritance of class ex: public TNamed
+
+        ### input/output data container sub-keywords for 
             +gname  -- set global data container array name
             +lname  -- set local  data container array name
             +bname  -- set parameter name to be registered or registered as branch name
             +pname  -- set local single data container name
             +size   -- set initial size of the data container array
             +persis -- set persistency of branch (True or False). Default is True
-        ex):
+
+        ex:
             +odata auto fMyDataArray = TClonesArray("TMyData",100)
             +lname myDataArray
             +bname firstData
             +pname myData
 
-        Sub-keywords for parameter:
+        ### parameter sub-keywords:
             +gname  -- set global parameter name
             +lname  -- set local  parameter name
             +pname  -- set parameter name to be used in the parameter container
@@ -141,15 +165,23 @@ class lilakcc:
             +init fParameter1 -> SetVal({parc} -> GetParString({pname}))
             +clear fParameter1 -> SetVal(-9.99)
 
-        Sub-keyword for method:
+        ### method sub-keyword:
             source -- set method to be written in the source
         """
+
+        if len(input_lines)==0:
+            print(f"[add()] WARNING1! no input is given!")
+            return
+
+        if input_lines.find("\n")<0:
+            file_add = open(input_lines, 'r')
+            input_lines = file_add.read()
 
         group = []
         group_list = []
         list_line = input_lines.splitlines()
-        list_complete = ["class", "idata", "odata", "include", "private", "protected", "public"]
-        list_components = ["gname", "lname", "pname", "bname", "persis", "setter", "getter", "init", "clear", "source", "print", "copy"]
+        list_complete = ["path", "class", "idata", "odata", "include", "private", "protected", "public"]
+        list_components = ["comment", "inherit", "gname", "lname", "pname", "bname", "persis", "setter", "getter", "init", "clear", "source", "print", "copy"]
 
         is_method = True
         head_is_found = False
@@ -159,7 +191,7 @@ class lilakcc:
                     group_list.append(group.copy())
                     head_is_found = False
                     group.clear()
-            elif line[:2] == '//' or line[:2] == '/*' or line[:2] == ' *' or line[0] == '*':
+            elif line[:2] == '//' or line[:2] == '/*' or line[:2] == ' *' or line[0] == '*' or line.find('+comment')==0:
                 group.append(["comment",line])
             elif line[0] == '+':
                 ispace = line.find(' ')
@@ -189,13 +221,14 @@ class lilakcc:
         for group in group_list:
 
             group_new = []
+            i1 = 0
             for i0 in range(len(group)):
                 ltype0, line0 = group[i0]
                 if (ltype0)==0:
                     continue
                 for i1 in range(len(group)):
                     ltype1, line1 = group[i1]
-                    if len(ltype1)==0:
+                    if len(ltype1)==0 or ltype1==ltype0:
                         line0 = line0 + "\n" + line1
                     else:
                         break
@@ -208,13 +241,16 @@ class lilakcc:
                 if ltype0 in list_complete:
                     break
 
-            if ltype0=='class':
-                class_path = ""
+            if ltype0=='path':
+                self.set_file_path(line0)
+
+            elif ltype0=='class':
                 class_comment = ""
+                list_inherit = []
                 for ltype, line in group_new:
-                    if ltype=='path':    class_path = line
                     if ltype=='comment': class_comment = line
-                self.set_class(line0,class_path=class_path,class_comment=class_comment)
+                    if ltype=='inherit': list_inherit.append(line)
+                self.set_class(line0,class_comment=class_comment, list_inherit=list_inherit)
 
             elif ltype0=='idata':
                 idata_gname = ""
@@ -229,9 +265,9 @@ class lilakcc:
                     if ltype=='bname': idata_bname = line
                     if ltype=='comment': idata_comment = line
                 da_name, d0_class, da_size = self.break_data_array(line0)
-                add_input_data_array(self, data_class=0_class, data_array_gname=idata_pname,
+                add_input_data_array(self, data_class=d0_class, data_array_gname=idata_gname,
                         data_array_bname=idata_bname, data_array_lname=idata_lname,
-                        single_data_name=idata_pname, data_array_comment=idata_comment)
+                        single_data_name=idata_pname, input_comment=idata_comment)
 
             elif ltype0=='odata':
                 odata_gname = ""
@@ -247,9 +283,8 @@ class lilakcc:
                     if ltype=='comment': odata_comment = line
                     if ltype=='persis': odata_persis = (True if (line.strip().lower())=="true" else False)
                 da_name, d0_class, da_size = self.break_data_array(line0)
-                add_output_data_array(self, data_class=0_class, data_array_gname=idata_pname,
-                        data_array_bname=idata_bname, data_array_lname=idata_lname,
-                        single_data_name=idata_pname, data_array_comment=idata_comment, data_persistency=odata_persis)
+                add_output_data_array(self, data_class=d0_class, data_array_gname=idata_gname, data_array_bname=idata_bname, data_array_lname=idata_lname,
+                        single_data_name=idata_pname, data_array_init_size=d0_size, input_comment=idata_comment, data_persistency=odata_persis)
 
             elif ltype0=='include':
                 self.include_headers(line)
@@ -274,6 +309,7 @@ class lilakcc:
                 par_print  = ""
                 par_copy  = ""
                 par_source = ""
+                par_comment = ""
                 for ltype, line in group_new:
                     if ltype=='gname':  par_gname  = line
                     if ltype=='lname':  par_lname  = line
@@ -286,7 +322,8 @@ class lilakcc:
                     if ltype=='print':  par_print  = line
                     if ltype=='copy':   par_copy  = line
                     if ltype=='source': par_source = line
-                self.add_par(line0, acc_spec=acc_spec,
+                    if ltype=='comment': par_comment = line
+                self.add_par(line0, acc_spec=acc_spec, input_comment=par_comment,
                         gname=par_gname, lname=par_lname,
                         pname=par_pname, par_persis=par_persis, 
                         par_setter=par_setter, par_getter=par_getter,
@@ -294,56 +331,64 @@ class lilakcc:
                         par_print=par_print, par_copy=par_copy, par_source=par_source)
 
 ###########################################################################################################################################
-    def set_class(self, line, class_path="", class_comment=""):
-        """
-        1) class class_name
-        2) class class_name : public inherit_class
-        3) class class_name : public inherit_class1, public inherit_class2, ...
-        """
-        ba_colon = line.split(':')
-        before_colon = ba_colon[0].strip()
-        after_colon = ba_colon[1].strip()
+    def set_class(self, line, class_comment="", list_inherit=[]):
+        if line.find('class')==0:
+            line = line[line.find('class')+5:].strip()
 
-        if before_colon.find('class')==0:
-            class_name = before_colon[5:].strip()
+        if line.find("::")>0:
+            line = line[line.find('::')+2:].strip()
+
+        if line.find(":")>0:
+            after_colon = line[line.find(':')+1:]
+            line = line[:line.find(':')]
+            list_lines = after_colon.split(",")
+            for line in list_lines:
+                inherit_group = inherit_group.split()
+                list_inherit.append(inherit_group)
+
+        if line.find('class')==0:
+            class_name = line[5:].strip()
         else:
-            class_name = before_colon.strip()
+            class_name = line.strip()
 
         self.set_file_name(class_name)
-        self.set_file_path(class_path)
         self.set_class_comment(class_comment)
 
-        inherit_list = after_colon.split(',')
-        for inherit_line in inherit_list:
-            if len(inherit_line)>5:
-                self.add_inherit_class(inherit_line.split())
+        for inherit_group in list_inherit:
+            self.add_inherit_class(inherit_group)
     
 ###########################################################################################################################################
-    def add_method(self, line, acc_spec="public", method_source=""):
+    def add_method(self, line, comment="", acc_spec="public", method_source=""):
         if len(method_source)==0: method_source = line
-        method_header = self.make_method(line,         is_header=True)
-        method_source = self.make_method(method_source,is_source=True)
+        method_header = self.make_method(line,         comment=comment,is_header=True)
+        method_source = self.make_method(method_source,comment=comment,is_source=True)
 
         ias = {"public" : 0, "protected": 1, "private" : 2}.get(acc_spec, -1)
         self.method_header_list[ias].append(method_header)
         self.method_source_list[ias].append(method_source)
 
 ###########################################################################################################################################
-    def make_method(self, line, is_header=True, is_source=False, in_line=False):
+    def make_method(self, line, comment="", tab_no=0, is_header=True, is_source=False, in_line=False, omit_semicolon=False):
         is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line)
+
+        if omit_semicolon:
+            semicolon = ""
+        else:
+            semicolon = ";"
 
         line_const = f" const" if len(method_const)>0 else ""
         line_arguments = "(" + method_arguments + ")" if len(method_arguments)>0 else ""
         if len(method_init)>0:
-            line_content = " = " + method_init + ";"
+            line_content = " = " + method_init + semicolon
         elif len(method_contents)>0:
             if method_contents.find("\n")>=0 or is_source:
                 line_content = "{\n" + method_contents + "\n}"
             else:
                 line_content = " { " + method_contents + " }"
         else:
-            line_content = ";"
+            line_content = semicolon
         line = f"{method_type} {method_name}{line_arguments}{line_const}{line_content}"
+        line = (" "*self.tab_size)*tab_no + line
         line = self.make_doxygen_comment(method_comments,line)
         return line
 
@@ -353,7 +398,7 @@ class lilakcc:
                 gname="", lname="", pname="", par_persis=True,
                 par_setter="", par_getter="",
                 par_init="", par_clear="", par_print="", par_copy="",
-                par_source=""):
+                par_source="", input_comment=""):
         """ add parameter
         lines               -- Input contents
         acc_spec = "public" -- Access specifier: one of "public", protected", "private"
@@ -385,7 +430,7 @@ class lilakcc:
         if len(lname)==0:
             lname = par_name
         if lname==gname:
-            print(f"WARNING! gname({gname}) and lname({lname}) are same! replacing lname to {lname}_.")
+            print(f"WARNING2! gname({gname}) and lname({lname}) are same! replacing lname to {lname}_.")
             lname = lname + "_"
 
         ############ parameter name in parameter container ############
@@ -406,7 +451,7 @@ class lilakcc:
             pname2 = par_init[:par_init.find(' ')]
             par_init = par_init.replace("{pname}",pname)
             if pname2!=pname:
-                print(f"WARNING! given pname({pname}) and pname2({pname2}) from par_init, are not same! replacing pname2 to {pname}.")
+                print(f"WARNING3! given pname({pname}) and pname2({pname2}) from par_init, are not same! replacing pname2 to {pname}.")
                 pname2 = {pname}
                 par_init = pname + ' ' + par_init[par_init.find(' '):]
 
@@ -530,9 +575,9 @@ class lilakcc:
         """Make funciton from line"""
         is_method, func_type, func_name, func_arguments, func_const, func_init, func_contents, func_comments2, comment_type = self.break_line(func_full)
 
-        if   len(comment)==0 and len(func_comment2)!=0: comment = func_comment2
-        elif len(comment)!=0 and len(func_comment2)==0: pass
-        elif len(comment)!=0 and len(func_comment2)!=0: comment = comment + '\n' + func_comment2
+        if   len(comment)==0 and len(func_comments2)!=0: comment = func_comments2
+        elif len(comment)!=0 and len(func_comments2)==0: pass
+        elif len(comment)!=0 and len(func_comments2)!=0: comment = comment + '\n' + func_comments2
 
         if   tab_no<-1 and tab_no2>=0: tab_no = tab_no2
         elif tab_no>=0: tab_no = tab_no
@@ -544,7 +589,7 @@ class lilakcc:
         if len(func_type)>0: func_full = ' '*(self.tab_size*tab_no) + func_type + " " + func_full
         else:                func_full = ' '*(self.tab_size*tab_no) + func_full
 
-        if (func_is_const):
+        if (func_const):
             func_full = func_full + " const"
 
         lines = func_contents.split('\n')
@@ -676,8 +721,8 @@ class lilakcc:
             icomma = func_type_name.find(",")
             ispace = func_type_name.rfind(" ")
             if ispace<0:
-                print("------- ERROR1 configuring type and name: ", lines, " -------")
-                #return False
+                ispace=0
+                #print("------- ERROR1 configuring type and name: ", lines, " -------")
             if icomma>0:
                 while func_type_name[icomma-1]==' ':
                     icomma = icomma-1
@@ -709,7 +754,7 @@ class lilakcc:
             elif ib2==0:
                 func_arguments = ""
             elif ib2<0:
-                print("ERROR3 configuring parmeters no ')': ", lines)
+                print("ERROR2 configuring parmeters no ')': ", lines)
                 return False
 
             ispace = line_before_rb.rfind(" ")
@@ -740,8 +785,10 @@ class lilakcc:
                     func_contents = ";"
                 else:
                     func_contents = line_after_cb[ib3+1:ib4].strip()
-                    if func_contents[0]=="\n": func_contents = func_contents[1:]
-                    if func_contents[len(func_contents)-1]=="\n": func_contents = func_contents[:len(func_contents)-1]
+                    if len(func_contents)==0: func_contents = ""
+                    else:
+                        if func_contents[0]=="\n": func_contents = func_contents[1:]
+                        if func_contents[len(func_contents)-1]=="\n": func_contents = func_contents[:len(func_contents)-1]
             else:
                 func_contents = ""
         else:
@@ -809,7 +856,7 @@ class lilakcc:
             elif header[:2]=="LK":  self.include_lilak_list.append(header_full)
             else:                   self.include_other_list.append(header_full)
 
-    def add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", data_array_comment=""):
+    def add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment=""):
         ############ field name ############
         if data_array_gname[0]=="f" and data_array_gname[1].isupper:
             par_name = par_name[1:]
@@ -837,7 +884,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
 
 
     def add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data",
-                              data_array_init_size=0, data_array_comment="", data_persistency=True):
+                              data_array_init_size=0, input_comment="", data_persistency=True):
         ############ field name ############
         if data_array_gname[0]=="f" and data_array_gname[1].isupper:
             par_name = par_name[1:]
@@ -877,11 +924,14 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
 
     def init_print(self):
         if os.path.exists(self.path)==False:
-            os.mkdir(self.path,exist_ok=True) 
+            os.mkdir(self.path)
 
-    def print_container(self,to_screen=False,to_file=True,print_example_comments=True,
-                        inheritance='public LKContainer',
-                        includes='LKContainer.hpp'):
+    def make_container(self,input_lines, to_screen=False, to_file=True, print_example_comments=True):
+        self.add(input_lines)
+        self.print_container(to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments)
+
+    def print_container(self,to_screen=False, to_file=True, print_example_comments=True,
+                        inheritance='public LKContainer', includes='LKContainer.hpp'):
         """Print header and source file of lilak container class content to screen or file
 
         to_screen (bool ; False) -- If True, print container to screen
@@ -891,6 +941,8 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         includes (string ; 'LKContainer.hpp') -- headers to be included separated by space
         """
         self.init_print()
+        br1 = "{"
+        br2 = "}"
 
         self.include_headers('TClonesArray.h')
         self.include_headers('LKLogger.hpp')
@@ -958,11 +1010,11 @@ This notifiy users that the container has been update in the new LILAK (or side 
             constructor_content = "// It is essential to place Clear() method inside the constructor for TClonesArray feature.\nClear();"
         else:
             constructor_content = "Clear();"
-        header_constructor = self.make_fline(self.name, tab_no=2, is_header=True)
-        header_destructor = self.make_fline("virtual ~"+self.name, tab_no=2, is_header=True)
-        header_clear = self.make_fline("virtual void Clear(Option_t *option)", tab_no=2, is_header=True)
-        header_print = self.make_fline("virtual void Print(Option_t *option) const;", tab_no=2, is_header=True)
-        header_copy = self.make_fline("virtual void Copy (TObject &object) const;",  tab_no=2, is_header=True)
+        header_constructor = self.make_method(self.name, tab_no=2, is_header=True)
+        header_destructor = self.make_method("virtual ~"+self.name, tab_no=2, is_header=True)
+        header_clear = self.make_method("virtual void Clear(Option_t *option)", tab_no=2, is_header=True)
+        header_print = self.make_method("virtual void Print(Option_t *option) const;", tab_no=2, is_header=True)
+        header_copy = self.make_method("virtual void Copy (TObject &object) const;",  tab_no=2, is_header=True)
 
         header_getter = tab2 + etab2.join(self.get_full_list[0])
         header_setter = tab2 + etab2.join(self.set_full_list[0])
@@ -981,10 +1033,10 @@ This notifiy users that the container has been update in the new LILAK (or side 
         self.par_copy_list.insert(2,f"auto objCopy = ({self.name} &) object;")
         copy_content = '\n'.join(self.par_copy_list)
 
-        source_constructor = self.make_fline(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
-        source_clear = self.make_fline("void Clear(Option_t *option) const {b1}{clear_content}{b2}", 0, is_source=True)
-        source_print = self.make_fline("void Print(Option_t *option) const {b1}{print_content}{b2}", 0, is_source=True)
-        source_copy = self.make_fline ("void Copy (TObject  &object) const {b1}{ copy_content}{b2}", 0, is_source=True)
+        source_constructor = self.make_method(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
+        source_clear = self.make_method("void Clear(Option_t *option) const {br1}{clear_content}{br2}", 0, is_source=True)
+        source_print = self.make_method("void Print(Option_t *option) const {br1}{print_content}{br2}", 0, is_source=True)
+        source_copy = self.make_method ("void Copy (TObject  &object) const {br1}{ copy_content}{br2}", 0, is_source=True)
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
@@ -998,8 +1050,8 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_class_end = "};"
         header_end = "\n#endif"
 
-        header_classdef = self.make_fline(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
-        source_classimp = self.make_fline(f"ClassImp({self.name})", omit_semicolon=True)
+        header_classdef = self.make_method(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
+        source_classimp = self.make_method(f"ClassImp({self.name})", omit_semicolon=True)
 
         ############## join header ##############
         header_list = [
@@ -1055,6 +1107,9 @@ This notifiy users that the container has been update in the new LILAK (or side 
         """
         self.init_print()
 
+        br1 = "{"
+        br2 = "}"
+
         self.include_headers('TClonesArray.h')
         self.include_headers('LKLogger.hpp')
         self.include_headers('LKTask.hpp')
@@ -1095,10 +1150,10 @@ Or use print_example_comments=False option to omit printing
         ############## public ##############
         header_class_public = ' '*self.tab_size + "public:"
         constructor_content = ""
-        header_constructor = self.make_fline(self.name, tab_no=2, is_header=True)
-        header_destructor = self.make_fline("virtual ~"+self.name, tab_no=2, is_header=True)
-        header_init = self.make_fline("bool Init()", tab_no=2, is_header=True)
-        header_exec = self.make_fline("void Exec(Option_t *option)", tab_no=2, is_header=True)
+        header_constructor = self.make_method(self.name, tab_no=2, is_header=True)
+        header_destructor = self.make_method("virtual ~"+self.name, tab_no=2, is_header=True)
+        header_init = self.make_method("bool Init()", tab_no=2, is_header=True)
+        header_exec = self.make_method("void Exec(Option_t *option)", tab_no=2, is_header=True)
 
         header_getter = tab2 + etab2.join(self.get_full_list[0])
         header_setter = tab2 + etab2.join(self.set_full_list[0])
@@ -1118,9 +1173,9 @@ Or use print_example_comments=False option to omit printing
         self.data_exec_list.append(f'lk_info << "{self.name} container" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
-        source_constructor = self.make_fline(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
-        source_init = self.make_fline(f"bool Init() {br1}{init_content}{br2}", 0, is_source=True)
-        source_exec = self.make_fline(f"void Exec(Option_t *option) const {br1}{exec_ontent}{br2}", 0, is_source=True)
+        source_constructor = self.make_method(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
+        source_init = self.make_method(f"bool Init() {br1}{init_content}{br2}", 0, is_source=True)
+        source_exec = self.make_method(f"void Exec(Option_t *option) const {br1}{exec_ontent}{br2}", 0, is_source=True)
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
@@ -1135,8 +1190,8 @@ Or use print_example_comments=False option to omit printing
         header_class_end = "};"
         header_end = "\n#endif"
 
-        header_classdef = self.make_fline(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
-        source_classimp = self.make_fline(f"ClassImp({self.name})", omit_semicolon=True)
+        header_classdef = self.make_method(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
+        source_classimp = self.make_method(f"ClassImp({self.name})", omit_semicolon=True)
 
         ############## join header ##############
         header_list = [
@@ -1181,7 +1236,6 @@ Or use print_example_comments=False option to omit printing
             print(header_all)
             print(f"\n\n{name_full}.cpp >>>>>")
             print(source_all)
-
 
 if __name__ == "__main__":
     help(lilakcc)
