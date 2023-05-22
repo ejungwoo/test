@@ -1,37 +1,43 @@
-class Logger {
-public:
-    Logger(const std::string& filename, bool logToFile = true, bool logToConsole = true)
-        : logfile_(logToFile ? filename : "")
-        , logToConsole_(logToConsole) {
-    }
-
-    template<typename T>
-    Logger& operator<<(const T& value) {
-        if (logToConsole_) {
-            std::cout << value;
+class Logger
+{
+    public:
+        Logger(const std::string& fileName, bool logToFile = true, bool logToConsole = true)
+        : fLogFile(logToFile ? fileName : ""), fLogToConsole(logToConsole)
+        {
         }
-        if (logfile_.is_open()) {
-            logfile_ << value;
-        }
-        return *this;
-    }
 
-private:
-    std::ofstream logfile_;
-    bool logToConsole_;
+        // for message
+        template<typename T> Logger& operator<<(const T& value)
+        {
+            if (fLogToConsole) { std::cout << value; }
+            if (fLogFile.is_open()) { fLogFile << value; }
+            return *this;
+        }
+
+        // for endl
+        Logger &operator<<(std::ostream&(*f)(std::ostream&))
+        {
+            if (fLogToConsole) { std::cout << *f; }
+            if (fLogFile.is_open()) { fLogFile << *f; }
+            return *this;
+        }
+
+    private:
+        std::ofstream fLogFile;
+        bool fLogToConsole;
 };
 
 void test() {
-  // Log to both console and file
-  Logger logger("data/mylog.txt");
-  logger << "asdflaksdfj";
+    // Log to both console and file
+    Logger logger("mylog.txt");
+    logger << "this is message from logger" << endl;;
 
-  // Log only to file
-  //Logger ("mylog.txt", true, false);
+    // Log only to file
+    //Logger ("mylog.txt", true, false);
 
-  // Log only to console
-  //Logger ("mylog.txt", false, true);
+    // Log only to console
+    //Logger ("mylog.txt", false, true);
 
-  // Don't log at all
-  //Logger ("mylog.txt", false, false);
+    // Don't log at all
+    //Logger ("mylog.txt", false, false);
 }
