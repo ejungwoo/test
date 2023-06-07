@@ -1,59 +1,38 @@
 from lilakcc import lilakcc
 
-to_screen=True
-to_file=False
+to_screen=False
+to_file=True
 
 ################################################################################################### 
 cc = lilakcc()
-cc.add("""
-/**
- * Virtual class for Tracklet container
- */
-+class LKTracklet : public LKContainer {
-}
 
-+private    int fTrackID = -1;
-+private    int fVertexID = -1;
-+private    int fPDG = -1;
-+lname      pdg
+cc.add("""
++class GETChannel : public LKContainer
++public     Int_t   fMult = -1;
++public     Int_t   fEventIdx = -1;
++public     Int_t   fFrameNo = -1;
++public     Int_t   fDecayNo = -1;
++public     Int_t   fCobo = -1;
++public     Int_t   fAsad = -1;
++public     Int_t   fAget = -1;
++public     Int_t   fChan = -1;
++public     Float_t fTime = -1;
++public     Float_t fEnergy = -1;
++public     Int_t   fWaveformX[512];
++init       for (auto i=0; i<512; ++i) fWaveformX[i] = -1;
++public     Int_t   fWaveformY[512];
++init       for (auto i=0; i<512; ++i) fWaveformY[i] = -1;
 """)
 
-#+private    TVector3 fPositionHead = TVecotor3(-9.9,-9.9,-9.9);
-#+setter     void SetPositionHead(double x, double y, double z) { fPositionHead(x,y,z); }
-#
-#+method/private    TVector3 fPositionTail = TVecotor3(-9.9,-9.9,-9.9);
-#+setter     void SetPositionTail(double x, double y, double z) { fPositionTail(x,y,z); }
-#
-#+private    LKHitArray fHitArray = nullptr; ///<!
-#+clear      fHitArray.Clear(option);
-#+print      fHitArray.Print(option);
-#+getter
-#LKHitArray *GetHitArray() {
-#    return &fHitArray;
-#}
-#
-#+private    TGraphErrors *fTrajectoryOnPlane = nullptr; ///<! Graph object for drawing trajectory on 2D event display
-#+init       fTrajectoryOnPlane = new TGraphErrors();
-#+clear      fTrajectoryOnPlane.Set(0);
-#
-#+protected  virtual double Energy(int alpha=0) const = 0; ///< Kinetic energy of track at vertex.
-#+public     virtual TVector3 Momentum(int alpha=0) const = 0; ///< Momentum of track at vertex.
-#
-#+public     virtual GetAlphaTail() const;       ///< Alpha at tail (reconstructed back end)
-#+public     virtual Double_t LengthToAlpha(double length) const = 0;        ///< Convert track-length (mm?) to alpha
-#+public     virtual Double_t AlphaToLength(double alpha) const = 0;             ///< Convert alpha to track-length (mm?)
-#+public     virtual Double_t TrackLength(double a1=0, double a2=1) const = 0;   ///< Length of track between two alphas (default: from vertex to head).
-#
-#/**
-# * Extrapolated position at given alpha.
-# * Alpha (double) is scaled length variable along the track where
-# * alpha=0 is position of vertex and
-# * alpha=1 is position of head (reconstructed front end).
-# */
-#+public virtual TVector3 ExtrapolateToAlpha(double alpha) const = 0;
-#+public virtual TVector3 ExtrapolateHead(Double_t dalpha) const = 0;        ///< Extrapolate head by dalpha and return position
-#+public virtual TVector3 ExtrapolateTail(Double_t dalpha) const = 0;        ///< Extrapolate tail by dalpha and return position
-#+public virtual TVector3 ExtrapolateToPosition(TVector3 point)              ///< Extrapolate and return POCA from point
-#+public virtual TVector3 ExtrapolateToPosition(TVector3 point) const;       ///< Extrapolate and return POCA from point
-#+public virtual TVector3 ExtrapolateToPosition(TVector3 point) const = 0;   ///< Extrapolate and return POCA from point
-#+public virtual TVector3 ExtrapolateToPosition(TVector3 point) const { return point; };   ///< Extrapolate and return POCA from point
+cc.print_container(to_screen=to_screen,to_file=to_file)
+#+gname  -- set global parameter name
+#+lname  -- set local  parameter name
+#+pname  -- set parameter name to be used in the parameter container
+#+persis -- set persistency of parameter (True or False). Default is True
+#+setter -- set setter
+#+getter -- set getter
+#+source -- set content to be included in the Constructor of LKTask
+#+init   -- set content to be included in the Init() method of LKTask
+#+clear  -- set content to be included in the Clear() method of LKTask
+#+print  -- set content to be included in the Print() method of LKTask
+#+copy   -- set content to be included in the Copy() method of LKTask

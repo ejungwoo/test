@@ -24,8 +24,6 @@ class lilakcc:
         [x] make_doxygen_comment(self, comment, add_to="", always_mult_line=False, not_for_doxygen=False, is_persistence=True)
         [x] include_headers(self,includes):
 
-        [x] make_container(self,input_lines)
-
         [x] print_container(self,to_screen=False,to_file=True,print_example_comments=True,
         [x] print_task(self,to_screen=False,to_file=True,print_example_comments=True):
             [x] init_print(self):
@@ -88,7 +86,7 @@ class lilakcc:
     def add_inherit_class(self, inherit_acc_class):
         """Description of the class"""
         self.inherit_list.append(inherit_acc_class)
-        print("+{:20}: {}".format("Add inherit class",comment))
+        print("+{:20}: {}".format("Add inherit class",inherit_acc_class))
 
 ###########################################################################################################################################
     def add(self, input_lines):
@@ -341,10 +339,11 @@ class lilakcc:
         if line.find(":")>0:
             after_colon = line[line.find(':')+1:]
             line = line[:line.find(':')]
-            list_lines = after_colon.split(",")
-            for line in list_lines:
-                inherit_group = inherit_group.split()
-                list_inherit.append(inherit_group)
+            if after_colon.find("{")>=0:
+                after_colon = after_colon[:after_colon.find('{')]
+            list_classes = after_colon.split(",")
+            for class_name in list_classes:
+                list_inherit.append(class_name)
 
         if line.find('class')==0:
             class_name = line[5:].strip()
@@ -377,17 +376,26 @@ class lilakcc:
             semicolon = ";"
 
         line_const = f" const" if len(method_const)>0 else ""
-        line_arguments = "(" + method_arguments + ")" if len(method_arguments)>0 else ""
+        line_arguments = "(" + method_arguments + ")"
+        #if method_arguments=="X":
+        #    line_arguments = ""
+        if len(method_arguments)==0:
+            line_arguments = "()"
+
         if len(method_init)>0:
             line_content = " = " + method_init + semicolon
         elif len(method_contents)>0:
             if method_contents.find("\n")>=0 or is_source:
-                line_content = "{\n" + method_contents + "\n}"
+                line_content = "{\n"
+                line_content = line_content + method_contents + "\n"
+                line_content = line_content + "}"
             else:
                 line_content = " { " + method_contents + " }"
         else:
             line_content = semicolon
-        line = f"{method_type} {method_name}{line_arguments}{line_const}{line_content}"
+        if len(method_type)!=0:
+            method_type = method_type + " "
+        line = f"{method_type}{method_name}{line_arguments}{line_const}{line_content}"
         line = (" "*self.tab_size)*tab_no + line
         line = self.make_doxygen_comment(method_comments,line)
         return line
@@ -926,26 +934,22 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})""" + "\n{" + f"""
         if os.path.exists(self.path)==False:
             os.mkdir(self.path)
 
-    def make_container(self,input_lines, to_screen=False, to_file=True, print_example_comments=True):
-        self.add(input_lines)
-        self.print_container(to_screen=to_screen, to_file=to_file, print_example_comments=print_example_comments)
-
-    def print_container(self,to_screen=False, to_file=True, print_example_comments=True,
-                        inheritance='public LKContainer', includes='LKContainer.hpp'):
+    def print_container(self,to_screen=False, to_file=True, print_example_comments=False,
+                        inheritance='public LKContainer', includes='LKContainer.h'):
         """Print header and source file of lilak container class content to screen or file
 
         to_screen (bool ; False) -- If True, print container to screen
-        to_file (bool ; True) -- If True, print container to file ({path}/{name}.cpp, {path}/{name}.hpp) 
+        to_file (bool ; True) -- If True, print container to file ({path}/{name}.cpp, {path}/{name}.h) 
         print_example_comments (bool ; True) -- Print comments that helps you filling up reset of the class.
         inheritance (string ; 'LKContainer') -- Class inheritance.
-        includes (string ; 'LKContainer.hpp') -- headers to be included separated by space
+        includes (string ; 'LKContainer.h') -- headers to be included separated by space
         """
         self.init_print()
         br1 = "{"
         br2 = "}"
 
         self.include_headers('TClonesArray.h')
-        self.include_headers('LKLogger.hpp')
+        self.include_headers('LKLogger.h')
         self.include_headers(includes)
         self.include_headers('<iostream>')
 
@@ -1002,7 +1006,7 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_description = self.make_doxygen_comment(self.comment)
         header_class = f"class {self.name} : {inheritance}" + "\n{"
 
-        source_include = f'#include "{self.name}.hpp"'
+        source_include = f'#include "{self.name}.h"'
 
         ############## public ##############
         header_class_public = ' '*self.tab_size + "public:"
@@ -1020,7 +1024,7 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_setter = tab2 + etab2.join(self.set_full_list[0])
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
 
-        self.par_clear_list.insert(0,f"{inherit_class}::Clear(option);")
+        self.par_clear_list.insert(0,f"{tab1}{inherit_class}::Clear(option);")
         clear_content = '\n'.join(self.par_clear_list)
 
         self.par_print_list.insert(0,"//TODO You will probability need to modify here")
@@ -1034,9 +1038,9 @@ This notifiy users that the container has been update in the new LILAK (or side 
         copy_content = '\n'.join(self.par_copy_list)
 
         source_constructor = self.make_method(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
-        source_clear = self.make_method("void Clear(Option_t *option) const {br1}{clear_content}{br2}", 0, is_source=True)
-        source_print = self.make_method("void Print(Option_t *option) const {br1}{print_content}{br2}", 0, is_source=True)
-        source_copy = self.make_method ("void Copy (TObject  &object) const {br1}{ copy_content}{br2}", 0, is_source=True)
+        source_clear = self.make_method(f"void Clear(Option_t *option) const {br1}{clear_content}{br2}", 0, is_source=True)
+        source_print = self.make_method(f"void Print(Option_t *option) const {br1}{print_content}{br2}", 0, is_source=True)
+        source_copy = self.make_method (f"void Copy (TObject  &object) const {br1}{copy_content}{br2}", 0, is_source=True)
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
@@ -1050,8 +1054,8 @@ This notifiy users that the container has been update in the new LILAK (or side 
         header_class_end = "};"
         header_end = "\n#endif"
 
-        header_classdef = self.make_method(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
-        source_classimp = self.make_method(f"ClassImp({self.name})", omit_semicolon=True)
+        header_classdef = self.make_method(f"ClassDef({self.name},0)", tab_no=1)#, omit_semicolon=True)
+        source_classimp = self.make_method(f"ClassImp({self.name})")#, omit_semicolon=True)
 
         ############## join header ##############
         header_list = [
@@ -1087,22 +1091,22 @@ This notifiy users that the container has been update in the new LILAK (or side 
 
         if to_file:
             print(name_full)
-            with open(f'{name_full}.hpp', 'w') as f1: print(header_all,file=f1)
+            with open(f'{name_full}.h', 'w') as f1: print(header_all,file=f1)
             with open(f'{name_full}.cpp', 'w') as f1: print(source_all,file=f1)
             #with open(f'{name_full}.par', 'w') as f1: print(par_all,file=f1)
 
         if to_screen:
-            print(f"{name_full}.hpp >>>>>")
+            print(f"{name_full}.h >>>>>")
             print(header_all)
             print(f"\n\n{name_full}.cpp >>>>>")
             print(source_all)
 
 
-    def print_task(self,to_screen=False,to_file=True,print_example_comments=True):
+    def print_task(self,to_screen=False,to_file=True,print_example_comments=False):
         """Print header and source file of lilak task class content to screen or file
 
         to_screen (bool ; False) -- If True, print container to screen
-        to_file (bool ; True) -- If True, print container to file ({path}/{name}.cpp, {path}/{name}.hpp) 
+        to_file (bool ; True) -- If True, print container to file ({path}/{name}.cpp, {path}/{name}.h) 
         print_example_comments (bool ; True) -- Print comments that helps you filling up reset of the class.
         """
         self.init_print()
@@ -1111,8 +1115,8 @@ This notifiy users that the container has been update in the new LILAK (or side 
         br2 = "}"
 
         self.include_headers('TClonesArray.h')
-        self.include_headers('LKLogger.hpp')
-        self.include_headers('LKTask.hpp')
+        self.include_headers('LKLogger.h')
+        self.include_headers('LKTask.h')
         self.include_headers('LKParameterContainer.h')
         self.include_headers('LKRun.h')
         self.include_headers('<iostream>')
@@ -1145,7 +1149,7 @@ Or use print_example_comments=False option to omit printing
         header_description = self.make_doxygen_comment(self.comment)
         header_class = f"class {self.name} : public LKTask" + "\n{"
 
-        source_include = f'#include "{self.name}.hpp"'
+        source_include = f'#include "{self.name}.h"'
 
         ############## public ##############
         header_class_public = ' '*self.tab_size + "public:"
@@ -1190,8 +1194,8 @@ Or use print_example_comments=False option to omit printing
         header_class_end = "};"
         header_end = "\n#endif"
 
-        header_classdef = self.make_method(f"ClassDef({self.name},0)", tab_no=1, omit_semicolon=True)
-        source_classimp = self.make_method(f"ClassImp({self.name})", omit_semicolon=True)
+        header_classdef = self.make_method(f"ClassDef({self.name},0)", tab_no=1)#, omit_semicolon=True)
+        source_classimp = self.make_method(f"ClassImp({self.name})")#, omit_semicolon=True)
 
         ############## join header ##############
         header_list = [
@@ -1227,12 +1231,12 @@ Or use print_example_comments=False option to omit printing
         
         if to_file:
             print(name_full)
-            with open(f'{name_full}.hpp', 'w') as f1: print(header_all,file=f1)
+            with open(f'{name_full}.h', 'w') as f1: print(header_all,file=f1)
             with open(f'{name_full}.cpp', 'w') as f1: print(source_all,file=f1)
             with open(f'{name_full}.par', 'w') as f1: print(par_all,file=f1)
 
         if to_screen:
-            print(f"{name_full}.hpp >>>>>")
+            print(f"{name_full}.h >>>>>")
             print(header_all)
             print(f"\n\n{name_full}.cpp >>>>>")
             print(source_all)
