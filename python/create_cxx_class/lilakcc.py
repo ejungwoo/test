@@ -469,7 +469,7 @@ class lilakcc:
         is_method, par_type, par_name, par_arguments, par_const, par_initv, par_contents, par_comments, comment_type = self.break_line(lines)
         ias = {"public":0, "protected":1, "private":2}.get(acc_spec, -1)
 
-        gname, lname, pname, dname = self.configure_names(par_name, gname, lname, pname)
+        gname, lname, pname, dname, mname = self.configure_names(par_name, gname, lname, pname)
 
         ############ parameter name in parameter container ############
         if len(pname)==0:
@@ -586,8 +586,8 @@ class lilakcc:
         ############ settter definition ############
         if len(par_setter)==0:
             set_type = par_type
-            set_name = "Set" + par_name[0].title()+par_name[1:]
-            line_set_par = self.make_method(f"void {set_name}({set_type} {lname});", in_line=True)
+            set_name = "Set" + mname[0].title()+mname[1:]
+            line_set_par = self.make_method(f"void {set_name}({set_type} {gname});", in_line=True)
         else:
             line_set_par = self.make_method(par_setter.replace("{gname}",gname), in_line=True)
             is_method, set_type, set_name, dp, dp, dp, dp, dp, dp = self.break_line(line_set_par)
@@ -595,7 +595,7 @@ class lilakcc:
         ############ gettter definition ############
         if len(par_getter)==0:
             get_type = par_type
-            get_name = "Get" + par_name[0].title()+par_name[1:]
+            get_name = "Get" + mname[0].title()+mname[1:]
             line_get_par = self.make_method(f"{get_type} {get_name}() const " +"{"+ f"return {gname};"+"}", in_line=True)
         else:
             line_get_par = self.make_method(par_getter.replace("{gname}",gname), in_line=True)
@@ -736,6 +736,7 @@ class lilakcc:
         lname -- local name
         pname -- parameter name of parameter container
         dname -- definition name in header (needed for array definition)
+        mname -- middle name to be used in the middle of function name. ex) Get[mname]
         return gname, lname, pname, dname
         """
 
@@ -743,11 +744,19 @@ class lilakcc:
         if given_name[0]=="f":
             lname = given_name[1:]
             lname = lname[0].lower()+lname[1:]
-        if len(gname)==0:
-            if given_name[1].isupper():
-                gname = "f" + lname[0].title()+lname[1:]
-            elif given_name[1].islower():
+            if len(gname)==0:
+                if given_name[1].isupper():
+                    gname = "f" + lname[0].title()+lname[1:]
+                    mname = lname[0].title()+lname[1:]
+                elif given_name[1].islower():
+                    gname = "f" + lname[0]+lname[1:]
+                    mname = lname[0]+lname[1:]
+
+        else:
+            lname = given_name
+            if len(gname)==0:
                 gname = "f" + lname[0]+lname[1:]
+                mname = lname[0]+lname[1:]
 
         dname = gname
 
@@ -767,9 +776,9 @@ class lilakcc:
 
         ############ parameter name in parameter container ############
         if len(pname)==0:
-            pname = given_name
+            pname = lname
 
-        return gname, lname, pname, dname
+        return gname, lname, pname, dname, mname
 
 ###########################################################################################################################################
     def break_data_array(self,lines):
@@ -1019,8 +1028,7 @@ class lilakcc:
 
 ###########################################################################################################################################
     def add_input_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data", input_comment=""):
-        dummy = ""
-        data_array_gname, data_array_lname, dummy, dummy = self.configure_names(data_array_gname, data_array_lname, data_array_lname, dummy)
+        data_array_gname, data_array_lname, dummy, dummy, dummy = self.configure_names(data_array_gname, data_array_lname, data_array_lname, "")
 
         if len(single_data_name)==0:
             if data_array_lname.endswith("Array"):
@@ -1056,8 +1064,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 ###########################################################################################################################################
     def add_output_data_array(self, data_class, data_array_gname, data_array_bname, data_array_lname="", single_data_name="data",
                               data_array_init_size=0, input_comment="", data_persistency=True):
-        dummy = ""
-        data_array_gname, data_array_lname, dummy, dummy = self.configure_names(data_array_gname, data_array_lname, data_array_lname, dummy)
+        data_array_gname, data_array_lname, dummy, dummy, dummy = self.configure_names(data_array_gname, data_array_lname, data_array_lname, "")
 
         if len(single_data_name)==0:
             if data_array_lname.endswith("Array"):
@@ -1219,6 +1226,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         #if mode==m_task:
         header_init = self.make_method(f"bool Init()", tab_no=2, is_header=True)
         header_exec = self.make_method(f"void Exec(Option_t *option)", tab_no=2, is_header=True)
+        header_exec = self.make_method(f"void EndOfRun()", tab_no=2, is_header=True)
         #elif mode==m_cont:
         header_clear = self.make_method("virtual void Clear(Option_t *option)", tab_no=2, is_header=True)
         header_print = self.make_method("virtual void Print(Option_t *option) const;", tab_no=2, is_header=True)
@@ -1255,7 +1263,8 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         source_constructor = self.make_method(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
         source_init = self.make_method(f"bool {self.name}::Init() {br1}{init_content}{br2}", 0, is_source=True, fix_content=init_content)
-        source_exec = self.make_method(f"void {self.name}::Exec(Option_t *option) const {br1}{exec_content}{br2}", 0, is_source=True, fix_content=exec_content)
+        source_exec = self.make_method(f"void {self.name}::Exec(Option_t *option) {br1}{exec_content}{br2}", 0, is_source=True, fix_content=exec_content)
+        source_exec = self.make_method(f"void {self.name}::EndOfRun() {br1}{br2}", 0, is_source=True)
         source_clear = self.make_method(f"void {self.name}::Clear(Option_t *option) const {br1}{clear_content}{br2}", 0, is_source=True, fix_content=clear_content)
         source_print = self.make_method(f"void {self.name}::Print(Option_t *option) const {br1}{print_content}{br2}", 0, is_source=True, fix_content=print_content)
         source_copy = self.make_method (f"void {self.name}::Copy (TObject  &object) const {br1}{copy_content}{br2}", 0, is_source=True, fix_content=copy_content)

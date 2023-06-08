@@ -41,5 +41,23 @@ lilakcc(
 
 +odata  auto fChannelArray = new TClonesArray("GETChannel",200)
 +bname  RawData
+
++private TString fInputFileName = "~/data/texat/run_0824.dat.19-03-23_23h42m36s.38.root";
+-private TFile* fInputFile;
+-private TTree* fInputTree;
+
+-private Int_t   mmMul;
+-private Int_t   mmHit;
+-private Int_t   mmEventIdx;
+-private Int_t   mmFrameNo[1030];   //[mmMul]
+-private Int_t   mmDecayNo[1030];   //[mmMul]
+-private Int_t   mmCobo[1030];   //[mmMul]
+-private Int_t   mmAsad[1030];   //[mmMul]
+-private Int_t   mmAget[1030];   //[mmMul]
+-private Int_t   mmChan[1030];   //[mmMul]
+-private Float_t mmTime[1030];   //[mmMul]
+-private Float_t mmEnergy[1030];   //[mmMul]
+-private Int_t   mmWaveformX[1030][512];   //[mmMul][time]
+-private Int_t   mmWaveformY[1030][512];   //[mmMul][time]
 """
 ).print_task(to_screen=to_screen,to_file=to_file)
