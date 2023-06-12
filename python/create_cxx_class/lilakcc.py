@@ -66,27 +66,27 @@ class lilakcc:
     def set_tab_size(self, tab_size):
         """Set tab size"""
         self.tab_size = tab_size
-        print("+{:20}: {}".format("Set tab size",tab_size))
+        print("++ {:20}: {}".format("Set tab size",tab_size))
 
     def set_file_name(self,name):
         """Set name of the class"""
         self.name = name
-        print("+{:20}: {}".format("Set class",name))
+        print("++ {:20}: {}".format("Set class",name))
   
     def set_file_path(self,file_path):
         """Set path where files are created"""
         self.path = file_path
-        print("+{:20}: {}".format("Set file path",file_path))
+        print("++ {:20}: {}".format("Set file path",file_path))
 
     def set_class_comment(self, comment):
         """Description of the class"""
         self.comment = comment 
-        print("+{:20}: {}".format("Set class comment",comment))
+        print("++ {:20}: {}".format("Set class comment",comment))
 
     def add_inherit_class(self, inherit_acc_class):
         """Description of the class"""
         self.inherit_list.append(inherit_acc_class)
-        print("+{:20}: {}".format("Add inherit class",inherit_acc_class))
+        print("++ {:20}: {}".format("Add inherit class",inherit_acc_class))
 
 ###########################################################################################################################################
     def add(self, input_lines):
@@ -221,24 +221,21 @@ class lilakcc:
             i1 = 0
             for i0 in range(len(group)):
                 ltype0, line0 = group[i0]
-                if (ltype0)==0:
-                    continue
+                #if len(ltype0)==0: continue
+
                 for i1 in range(len(group)):
+                    if i0==i1:
+                        continue
                     ltype1, line1 = group[i1]
                     if len(ltype1)==0 or ltype1==ltype0:
                         line0 = line0 + "\n" + line1
                     else:
                         break
+
                 group_new.append([ltype0,line0])
 
-            #print("=====================================================")
-            #for ltype, line in group_new: print(f"{ltype:15}{ltype0:15}",line)
-
-            print(group_new)
-
-            for ltype0, line0 in group_new:
-                if ltype0 in list_complete:
-                    break
+            ltype0, line0 = group_new[0][0], group_new[0][1]
+            is_method = self.check_method_or_par(line0)
 
             if ltype0=='path':
                 self.set_file_path(line0)
@@ -322,7 +319,7 @@ class lilakcc:
                     if ltype=='copy':   par_copy  = line
                     if ltype=='source': par_source = line
                     if ltype=='comment': par_comment = line
-                self.add_par(line0, acc_spec=acc_spec, input_comment=par_comment,
+                self.add_par(line0, acc_spec=acc_spec, par_comment=par_comment,
                         gname=par_gname, lname=par_lname,
                         pname=par_pname, par_persis=par_persis, 
                         par_setter=par_setter, par_getter=par_getter,
@@ -413,7 +410,7 @@ class lilakcc:
                 gname="", lname="", pname="", par_persis=True,
                 par_setter="", par_getter="",
                 par_init="", par_clear="", par_print="", par_copy="",
-                par_source="", input_comment=""):
+                par_source="", par_comment=""):
         """ add parameter
         lines               -- Input contents
         acc_spec = "public" -- Access specifier: one of "public", protected", "private"
@@ -436,6 +433,7 @@ class lilakcc:
         ############ general par name ############
         if par_name[0]=="f" and par_name[1].isupper:
             par_name = par_name[1:]
+            par_name = par_name[0].lower()+par_name[1:]
 
         ############ field parameter name ############
         if len(gname)==0:
@@ -463,13 +461,26 @@ class lilakcc:
             par_file_val = par_initv
         else:
             use_par_init = True
-            pname2 = par_init[:par_init.find(' ')]
-            par_init = par_init.replace("{pname}",pname)
-            if pname2!=pname:
-                print(f"WARNING3! given pname({pname}) and pname2({pname2}) from par_init, are not same! replacing pname2 to {pname}.")
-                pname2 = {pname}
-                par_init = pname + ' ' + par_init[par_init.find(' '):]
+            #pname2 = par_init[:par_init.find(' ')]
+            #par_init = par_init.replace("{pname}",pname)
+            #if pname2!=pname:
+            #    print(f"WARNING3! given pname({pname}) and pname2({pname2}) from par_init, are not same! replacing pname2 to {pname}.")
+            #    pname2 = {pname}
+            #    par_init = pname + ' ' + par_init[par_init.find(' '):]
 
+        print('++ par    :'  ,lines)
+        print('   gname  :'  ,gname)
+        print('   lname  :'  ,lname)
+        print('   pname  :'  ,pname)
+        print('   persis :'  ,par_persis)
+        print('   setter :'  ,par_setter)
+        print('   getter :'  ,par_getter)
+        print('   init   :'  ,par_init)
+        print('   clear  :'  ,par_clear)
+        print('   print  :'  ,par_print)
+        print('   copy   :'  ,par_copy)
+        print('   source :'  ,par_source)
+        print('   comment:'  ,par_comment)
         ############ parameter task init ############
 
         line_par_init_in_init = gname
@@ -570,6 +581,23 @@ class lilakcc:
         self.set_full_list[0].append(line_set_par);
         self.get_full_list[0].append(line_get_par);
         self.parfile_lines.append(line_par_in_par_container)
+
+        print(self.par_init_list)
+        print()
+        print(self.par_clear_list)
+        print()
+        print(self.par_print_list)
+        print()
+        print(self.par_copy_list)
+        print()
+        print(self.par_def_list[ias])
+        print()
+        print(self.set_full_list[0])
+        print()
+        print(self.get_full_list[0])
+        print()
+        print(self.parfile_lines)
+        print()
 
 
 ###########################################################################################################################################
