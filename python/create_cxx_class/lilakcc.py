@@ -198,7 +198,6 @@ class lilakcc:
                 content = line[ispace+1:].strip() # line content
                 if ltype=='':
                     ltype=='public'
-                is_method = self.check_method_or_par(content)
                 if ltype in list_complete:
                     if head_is_found == True:
                         if len(group)>0:
@@ -233,7 +232,9 @@ class lilakcc:
                 group_new.append([ltype0,line0])
 
             #print("=====================================================")
-            #for ltype, line in group_new: print(f"{ltype:15}",line)
+            #for ltype, line in group_new: print(f"{ltype:15}{ltype0:15}",line)
+
+            print(group_new)
 
             for ltype0, line0 in group_new:
                 if ltype0 in list_complete:
@@ -370,12 +371,14 @@ class lilakcc:
     def make_method(self, line, comment="", tab_no=0, is_header=True, is_source=False, in_line=False, omit_semicolon=False):
         is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line)
 
+        tab1 = ' '*(self.tab_size*1)
+
         if omit_semicolon:
             semicolon = ""
         else:
             semicolon = ";"
 
-        line_const = f" const" if len(method_const)>0 else ""
+        line_const = f" const" if len(method_const)>0 else " "
         line_arguments = "(" + method_arguments + ")"
         #if method_arguments=="X":
         #    line_arguments = ""
@@ -385,13 +388,17 @@ class lilakcc:
         if len(method_init)>0:
             line_content = " = " + method_init + semicolon
         elif len(method_contents)>0:
+            if len(method_const)>0:
+                line_const = line_const + " "
             if method_contents.find("\n")>=0 or is_source:
                 line_content = "{\n"
-                line_content = line_content + method_contents + "\n"
+                for method_content in method_contents.splitlines():
+                    line_content = line_content + tab1 + method_content + "\n"
                 line_content = line_content + "}"
             else:
                 line_content = " { " + method_contents + " }"
         else:
+            line_const = ""
             line_content = semicolon
         if len(method_type)!=0:
             method_type = method_type + " "
@@ -667,6 +674,7 @@ class lilakcc:
         comment_list = []
         line_inprocess = lines
         ic1 = line_inprocess.find("//")
+        ibe = line_inprocess.rfind("}")
         # comment_type
         # 0:
         # 1: //
@@ -675,7 +683,7 @@ class lilakcc:
         # 4: ///<!
         # 5: //!
         comment_type = ""
-        while ic1>=0:
+        while ic1>=0 and ic1>ibe:
             if ic1==line_inprocess.find("///<!"):
                 func_linec = line_inprocess[ic1+5:]
                 false_persistency = True
