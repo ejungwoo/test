@@ -49,6 +49,9 @@ class lilakcc:
         self.par_print_list = []
         self.par_copy_list = []
 
+        #enum
+        self.enum_list = []
+
         # general
         self.par_def_list = [[],[],[]]
         self.par_init_list = []
@@ -183,7 +186,7 @@ class lilakcc:
         group = []
         group_list = []
         list_line = input_lines.splitlines()
-        list_complete = ["path", "class", "idata", "odata", "include", "private", "protected", "public"]
+        list_complete = ["path", "class", "idata", "odata", "include", "private", "protected", "public", "enum"]
         list_components = ["comment", "inherit", "gname", "lname", "pname", "bname", "persis", "setter", "getter", "init", "clear", "source", "print", "copy"]
 
         is_method = True
@@ -237,19 +240,19 @@ class lilakcc:
 
                 group_new.append([pm0, ltype0,line0])
 
-                for i0 in range(len(group_new)):
-                    pm0, ltype0, line0 = group_new[i0]
-                    if ltype0 in list_complete:
-                        break
+            for i2 in range(len(group_new)):
+                pm0, ltype0, line0 = group_new[i2]
+                if ltype0 in list_complete:
+                    break
 
             is_method = self.check_method_or_par(line0)
 
             if ltype0=='path':
-                #print("@@class")
+                #print("@@ path")
                 self.set_file_path(line0)
 
             elif ltype0=='class':
-                #print("@@class")
+                #print("@@ class")
                 class_comment = ""
                 list_inherit = []
                 for pm, ltype, line in group_new:
@@ -257,8 +260,12 @@ class lilakcc:
                     if ltype=='inherit': list_inherit.append(line)
                 self.set_class(line0,class_comment=class_comment, list_inherit=list_inherit)
 
+            elif ltype0=='enum':
+                #print("@@ enum")
+                self.set_enum(line0)
+
             elif ltype0=='idata':
-                #print("@@idata")
+                #print("@@ idata")
                 idata_gname = ""
                 idata_lname = ""
                 idata_pname = ""
@@ -285,7 +292,7 @@ class lilakcc:
                     input_comment=idata_comment)
 
             elif ltype0=='odata':
-                #print("@@odata")
+                #print("@@ odata")
                 odata_gname = ""
                 odata_lname = ""
                 odata_pname = ""
@@ -315,11 +322,11 @@ class lilakcc:
                     data_persistency=odata_persis)
 
             elif ltype0=='include':
-                #print("@@include")
+                #print("@@ include")
                 self.include_headers(line)
 
             elif is_method:
-                #print("@@method")
+                #print("@@ method")
                 acc_spec = ltype0
                 method_source = ""
                 for pm, ltype, line in group_new:
@@ -327,7 +334,7 @@ class lilakcc:
                 self.add_method(line0, acc_spec=acc_spec, method_source = method_source)
 
             else:
-                #print("@@par")
+                #print("@@ par")
                 acc_spec = ltype0
                 par_gname  = ""
                 par_lname  = ""
@@ -391,6 +398,27 @@ class lilakcc:
         for inherit_group in list_inherit:
             self.add_inherit_class(inherit_group)
     
+###########################################################################################################################################
+    def set_enum(self, line):
+        tab2 = ' '*(self.tab_size*1)*2
+        tab3 = ' '*(self.tab_size*1)*3
+        list_comp = line.splitlines()
+        ename = list_comp[0].strip()
+        enum_all = tab2 + f"enum class {ename}\n"
+        enum_all = enum_all + tab2 + "{\n"
+        for comp in list_comp[1:]:
+            ic = comp.find("//")
+            if ic<0:
+                ic = len(comp)
+            cname, comment = comp[:ic].strip(), comp[ic+2:].strip()
+            cname = cname + ","
+            if len(comment)>0:
+                enum_all = enum_all + tab3 + f"{cname:15} // {comment}\n"
+            else:
+                enum_all = enum_all + tab3 + f"{cname}\n"
+        enum_all = enum_all + tab2 + "};\n"
+        self.enum_list.append(enum_all)
+
 ###########################################################################################################################################
     def add_method(self, line, comment="", acc_spec="public", method_source=""):
         if len(method_source)==0: method_source = line
@@ -1222,6 +1250,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             constructor_content = "Clear();"
         header_constructor = self.make_method(self.name, tab_no=2, is_header=True)
         header_destructor = self.make_method("virtual ~"+self.name, tab_no=2, is_header=True)
+        header_enum = '\n'+'\n'.join(self.enum_list)
 
         #if mode==m_task:
         header_init = self.make_method(f"bool Init()", tab_no=2, is_header=True)
@@ -1244,7 +1273,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         self.par_init_list.insert(2,"")
         init_content = '\n'.join(self.par_init_list)
         self.data_init_list.insert(0,"")
-        init_content = init_content + '\n'.join(self.data_init_list)
+        init_content = init_content + '\n' + '\n'.join(self.data_init_list)
         self.data_exec_list.insert(0,"// Exec() method will be executed every event.")
         self.data_exec_list.append("")
         self.data_exec_list.append(f'lk_info << "{self.name} container" << std::endl;')
@@ -1291,20 +1320,18 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
             header_list = [
                 header_define, header_include_root, header_include_lilak, header_include_other,
                 "", header_detail, header_description, header_class,
-                header_class_public, header_constructor, header_destructor,
+                header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_init, header_exec,
-                header_getter,
-                header_setter]
+                header_getter, header_setter]
         elif mode==m_cont:
             header_list = [
                 header_define, header_include_root, header_include_lilak, header_include_other,
                 "", header_detail, header_description, header_class,
-                header_class_public, header_constructor, header_destructor,
+                header_class_public, header_constructor, header_destructor, header_enum,
                 "", header_clear, header_print, header_copy,
-                header_getter,
-                header_setter]
+                header_getter, header_setter]
 
-        if len(header_public_par.strip())>0:    header_list.extend(["", header_public_par])
+        if len(header_public_par.strip())>0:    header_list.extend(["",header_public_par])
         if len(header_protected_par.strip())>0: header_list.extend(["",header_class_protected, header_protected_par])
         if len(header_private_par.strip())>0:   header_list.extend(["",header_class_private, header_private_par])
         header_list.extend(["",header_classdef,header_class_end,header_end])

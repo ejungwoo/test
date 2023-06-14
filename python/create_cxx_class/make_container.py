@@ -36,15 +36,37 @@ to_file=True
 ################################################################################################### 
 lilakcc(
 """
-+class ATConversionTask
+-class TTConversionTask
 /// Simple conversion from pre-converted root file
 
-+odata  auto fChannelArray = new TClonesArray("GETChannel",200)
-+bname  RawData
+-odata  auto fChannelArray = new TClonesArray("GETChannel",200)
+-bname  RawData
 
 +private TString fInputFileName = "~/data/texat/run_0824.dat.19-03-23_23h42m36s.38.root";
 -private TFile* fInputFile;
 -private TTree* fInputTree;
+
+-enum eType
+    kLeftStrip   // 0
+    kRightStrip  // 1
+    kLeftChain   // 2
+    kRightChain  // 3
+    kLowCenter   // 4
+    kHighCenter  // 5
+    kForwardSi   // 6
+    kForwardCsI  // 7
+    kMMJr        // 8
+    kCENSX6      // 10
+    kCENSCsI     // 11
+    kExternal    // 100
+
+-enum eDetLoc
+    kLeft          // 0
+    kRight         // 1
+    kCenterFront   // 2
+    kBottomLeftX6  // 10
+    kBottomRightX6 // 11
+    kCsI           // -1
 
 -private Int_t   mmMul;
 -private Int_t   mmHit;
@@ -59,5 +81,20 @@ lilakcc(
 -private Float_t mmEnergy[1030];   //[mmMul]
 -private Int_t   mmWaveformX[1030][512];   //[mmMul][time]
 -private Int_t   mmWaveformY[1030][512];   //[mmMul][time]
+
+-private Int_t Type[3][4][4][68];
+-private Int_t DetLoc[3][4][4][68];
+
+-private const Int_t mmnum = 1024; // # of all channels
+-private const Int_t sinum = 45; // quadrant*9
+-private const Int_t X6num = 600; // 20chan*30det
+-private const Int_t CsInum = 64; // 1chan*64det
+
++private TString fInputFileName = ~/data/texat/run_0824.dat.19-03-23_23h42m36s.38.root 
++private TString fmapmmFileName =  ~/data/txtfiles/mapchantomm.txt
++private TString fmapsiFileName =  ~/data/txtfiles/mapchantosi_CRIB.txt
++private TString fmapX6FileName =  ~/data/txtfiles/mapchantoX6_CRIB.txt
++private TString fmapCsIFileName = ~/data/txtfiles/mapchantoCsI_CRIB.txt 
+
 """
 ).print_task(to_screen=to_screen,to_file=to_file)
