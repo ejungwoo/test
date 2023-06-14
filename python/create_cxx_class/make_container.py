@@ -40,16 +40,6 @@ lilakcc(
 /// Simple conversion from pre-converted root file
 
 +odata  auto fChannelArray = new TClonesArray("GETChannel",200)
-+bname  rawData
-
--private    Int_t   mmMul;
--private    Float_t mmEnergy[1030];   ///[mmMul]
--private    Int_t   mmWaveformY[1030][512];   ///[mmMul][time]
--private    int kLeftStrip   = 0;
--private    Int_t type[3][4][4][68];
--private    Int_t DetLoc[3][4][4][68];
--private    const Int_t mmnum = 1024; /// # of all channels
--private    int dummy;
--par
++bname  RawData
 """
 ).print_task(to_screen=to_screen,to_file=to_file)

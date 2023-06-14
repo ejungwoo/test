@@ -244,8 +244,6 @@ class lilakcc:
 
             is_method = self.check_method_or_par(line0)
 
-            print(">>>>>",group_new)
-
             if ltype0=='path':
                 #print("@@class")
                 self.set_file_path(line0)
@@ -306,7 +304,6 @@ class lilakcc:
                 if len(odata_bname)==0:
                     print(f'-------- WARNING5! "bname" must be set for "odata"')
                     return
-                print("<<<<<<<<",da_name, da_class, da_size)
                 self.add_output_data_array(
                     data_class=da_class,
                     data_array_gname=odata_gname,
@@ -405,11 +402,10 @@ class lilakcc:
         self.method_source_list[ias].append(method_source)
 
 ###########################################################################################################################################
-    def make_method(self, line, comment="", tab_no=0, is_header=True, is_source=False, in_line=False, omit_semicolon=False, leave_comment=False):
-        is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line,leave_comment)
-
-        if line.find("iRawData")>=0:
-            print("???",method_contents)
+    def make_method(self, line, comment="", tab_no=0, is_header=True, is_source=False, in_line=False, omit_semicolon=False, fix_content=""):
+        is_method, method_type, method_name, method_arguments, method_const, method_init, method_contents, method_comments, comment_type = self.break_line(line)
+        if len(fix_content)>0:
+            method_contents = fix_content
 
         tab1 = ' '*(self.tab_size*1)
 
@@ -431,7 +427,7 @@ class lilakcc:
             if len(method_const)>0:
                 line_const = line_const + " "
             if method_contents.find("\n")>=0 or is_source:
-                line_content = "{\n"
+                line_content = "\n{\n"
                 for method_content in method_contents.splitlines():
                     line_content = line_content + tab1 + method_content + "\n"
                 line_content = line_content + "}"
@@ -442,12 +438,6 @@ class lilakcc:
             line_content = semicolon
         if len(method_type)!=0:
             method_type = method_type + " "
-        #if line.find("iRawData")>=0:
-        #    print("1111111",method_type)
-        #    print("2222222",method_name)
-        #    print("3333333",line_arguments)
-        #    print("4444444",line_const)
-        #    print("5555555",line_content)
         line = f"{method_type}{method_name}{line_arguments}{line_const}{line_content}"
         line = (" "*self.tab_size)*tab_no + line
         line = self.make_doxygen_comment(method_comments,line)
@@ -538,7 +528,7 @@ class lilakcc:
             par_file_val = par_file_val[par_file_val.find('(')+1:par_file_val.find(')')]
             par_file_val = par_file_val.replace(',','  ')
         else:
-            line_par_comment_in_init = f"//TODO The type {par_type} is not featured with LKParameterContainer. Please modify Below:" 
+            line_par_comment_in_init = f"//TODO The type {par_type} is not featured with LKParameterContainer. Please modify Below:"
             par_type_getpar = par_type
         line_par_init_in_init = f'{gname} = fPar -> GetPar{par_type_getpar}("{self.name}/{pname}");'
 
@@ -554,15 +544,20 @@ class lilakcc:
             if par_initv[par_initv.find('.')+1].isdigit()==False:
                 init_from_header = False
 
-        if init_from_header: line_par_definition = f'{par_type} {dname} = {par_initv};'
-        else:                line_par_definition = f'{par_type} {dname};'
+        if len(par_type)<10:
+            if init_from_header: line_par_definition = f'{par_type:10} {dname} = {par_initv};'
+            else:                line_par_definition = f'{par_type:10} {dname};'
+        elif len(par_type)<15:
+            if init_from_header: line_par_definition = f'{par_type:15} {dname} = {par_initv};'
+            else:                line_par_definition = f'{par_type:15} {dname};'
+        elif len(par_type)<20:
+            if init_from_header: line_par_definition = f'{par_type:20} {dname} = {par_initv};'
+            else:                line_par_definition = f'{par_type:20} {dname};'
         line_par_definition = self.make_doxygen_comment(par_comments,line_par_definition,is_persistence=par_persis)
-        #print("??",line_par_definition)
 
         if use_par_init: line_par_in_par_container = f'{par_init}'
         else:            line_par_in_par_container = f'{self.name}/{pname} {par_file_val}'
         line_par_in_par_container = self.make_doxygen_comment(pname_comment,line_par_in_par_container,comment_type="#")
-        #print("??",line_par_definition)
 
         ############ parameter clear ############
         if len(par_clear)==0:
@@ -735,34 +730,36 @@ class lilakcc:
         else: return True
 
 ###########################################################################################################################################
-    def configure_names(self, par_name, gname, lname, pname):
+    def configure_names(self, given_name, gname, lname, pname):
         """
         gname -- global name
         lname -- local name
         pname -- parameter name of parameter container
-        dname -- definition name in header (for array definition)
+        dname -- definition name in header (needed for array definition)
         return gname, lname, pname, dname
         """
-        ############ general par name ############
-        if par_name[0]=="f" and par_name[1].isupper:
-            par_name = par_name[1:]
-            par_name = par_name[0].lower()+par_name[1:]
 
-        ############ field parameter name ############
+        lname = given_name
+        if given_name[0]=="f":
+            lname = given_name[1:]
+            lname = lname[0].lower()+lname[1:]
         if len(gname)==0:
-            gname = "f" + par_name[0].title()+par_name[1:]
+            if given_name[1].isupper():
+                gname = "f" + lname[0].title()+lname[1:]
+            elif given_name[1].islower():
+                gname = "f" + lname[0]+lname[1:]
 
         dname = gname
 
         ############ local parameter name ############
         if len(lname)==0:
-            lname = par_name
+            lname = given_name
         if lname==gname:
             print(f"-------- WARNING2! gname({gname}) and lname({lname}) are same! replacing lname to {lname}_.")
             lname = lname + "_"
 
-        ib1 = par_name.find("[")
-        if ib1>0: par_name = par_name[:ib1]
+        ib1 = given_name.find("[")
+        if ib1>0: given_name = given_name[:ib1]
         ib1 = gname.find("[")
         if ib1>0: gname = gname[:ib1]
         ib1 = lname.find("[")
@@ -770,7 +767,7 @@ class lilakcc:
 
         ############ parameter name in parameter container ############
         if len(pname)==0:
-            pname = par_name
+            pname = given_name
 
         return gname, lname, pname, dname
 
@@ -787,12 +784,14 @@ class lilakcc:
 
         d0_class = arguments[0]
         d0_class = d0_class[d0_class.find('"')+1:d0_class.rfind('"')]
-        da_size = int(arguments[1])
+        da_size = 0
+        if len(arguments)>1:
+            da_size = int(arguments[1])
 
         return da_name, d0_class, da_size
 
 ###########################################################################################################################################
-    def break_line(self,lines,leave_comment=False):
+    def break_line(self,lines):
         """
         Break input line into
         * method:    type, name, argument, const, (init/content), comments
@@ -812,28 +811,27 @@ class lilakcc:
         # 4: ///<!
         # 5: //!
         comment_type = ""
-        if leave_comment==False:
-            while ic1>=0 and ic1>ibe:
-                if ic1==line_inprocess.find("///<!"):
-                    func_linec = line_inprocess[ic1+5:]
-                    false_persistency = True
-                    comment_type = "///<!"
-                elif ic1==line_inprocess.find("//!"):
-                    func_linec = line_inprocess[ic1+3:]
-                    false_persistency = True
-                    comment_type = "//!"
-                elif ic1==line_inprocess.find("///<"):
-                    func_linec = line_inprocess[ic1+4:]
-                    comment_type = "///<"
-                elif ic1==line_inprocess.find("///"):
-                    func_linec = line_inprocess[ic1+3:]
-                    comment_type = "///"
-                else:
-                    func_linec = line_inprocess[ic1+2:]
-                    comment_type = "//"
-                line_inprocess = line_inprocess[:ic1]
-                comment_list.append(func_linec)
-                ic1 = line_inprocess.find("//")
+        while ic1>=0 and ic1>ibe:
+            if ic1==line_inprocess.find("///<!"):
+                func_linec = line_inprocess[ic1+5:]
+                false_persistency = True
+                comment_type = "///<!"
+            elif ic1==line_inprocess.find("//!"):
+                func_linec = line_inprocess[ic1+3:]
+                false_persistency = True
+                comment_type = "//!"
+            elif ic1==line_inprocess.find("///<"):
+                func_linec = line_inprocess[ic1+4:]
+                comment_type = "///<"
+            elif ic1==line_inprocess.find("///"):
+                func_linec = line_inprocess[ic1+3:]
+                comment_type = "///"
+            else:
+                func_linec = line_inprocess[ic1+2:]
+                comment_type = "//"
+            line_inprocess = line_inprocess[:ic1]
+            comment_list.append(func_linec)
+            ic1 = line_inprocess.find("//")
 
         ###################################################
         icb1 = line_inprocess.find("{")
@@ -1069,8 +1067,8 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         self.data_array_def_list.append(f"TClonesArray *{data_array_gname} = nullptr;")
 
-        if data_array_init_size>0: self.data_init_list.append(f'{data_array_gname} = new TClonesArray("{data_class}");')
-        else:                      self.data_init_list.append(f'{data_array_gname} = new TClonesArray("{data_class}",{data_array_init_size});')
+        if data_array_init_size>0: self.data_init_list.append(f'{data_array_gname} = new TClonesArray("{data_class}",{data_array_init_size});')
+        else:                      self.data_init_list.append(f'{data_array_gname} = new TClonesArray("{data_class}");')
         self.data_init_list.append(f'fRun -> RegisterBranch("{data_array_bname}", {data_array_gname});')
 
         num_data = "num" + data_array_bname[0].title()+data_array_bname[1:]
@@ -1226,20 +1224,23 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         header_print = self.make_method("virtual void Print(Option_t *option) const;", tab_no=2, is_header=True)
         header_copy  = self.make_method("virtual void Copy (TObject &object) const;",  tab_no=2, is_header=True)
 
+        if len(self.get_full_list[0])>0: self.get_full_list[0].insert(0,"")
         header_getter = tab2 + etab2.join(self.get_full_list[0])
+        if len(self.set_full_list[0])>0: self.set_full_list[0].insert(0,"")
         header_setter = tab2 + etab2.join(self.set_full_list[0])
+
         header_public_par = tab2 + etab2.join(self.par_def_list[0])
 
         self.par_init_list.insert(0,"// Put intialization todos here which are not iterative job though event")
         self.par_init_list.insert(1,f'lk_info << "Initializing {self.name}" << std::endl;')
         self.par_init_list.insert(2,"")
         init_content = '\n'.join(self.par_init_list)
-        self.data_exec_list.insert(0,"// Put the main task job here. Exec() method will be executed for every event.")
-        self.data_exec_list.insert(1,"// All the Clear() methods of output data array are usually called at the start of the Exec()")
+        self.data_init_list.insert(0,"")
+        init_content = init_content + '\n'.join(self.data_init_list)
+        self.data_exec_list.insert(0,"// Exec() method will be executed every event.")
         self.data_exec_list.append("")
         self.data_exec_list.append(f'lk_info << "{self.name} container" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
-        print(">>>>>>",exec_content)
 
         self.par_clear_list.insert(0,f"{tab1}{inherit_class}::Clear(option);")
         clear_content = '\n'.join(self.par_clear_list)
@@ -1253,11 +1254,11 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         copy_content = '\n'.join(self.par_copy_list)
 
         source_constructor = self.make_method(f"{self.name}::{self.name}() {br1}{constructor_content}{br2}", 0, is_source=True)
-        source_init = self.make_method(f"bool {self.name}::Init() {br1}{init_content}{br2}", 0, is_source=True, leave_comment=True)
-        source_exec = self.make_method(f"void {self.name}::Exec(Option_t *option) const {br1}{exec_content}{br2}", 0, is_source=True, leave_comment=True)
-        source_clear = self.make_method(f"void {self.name}::Clear(Option_t *option) const {br1}{clear_content}{br2}", 0, is_source=True, leave_comment=True)
-        source_print = self.make_method(f"void {self.name}::Print(Option_t *option) const {br1}{print_content}{br2}", 0, is_source=True, leave_comment=True)
-        source_copy = self.make_method (f"void {self.name}::Copy (TObject  &object) const {br1}{copy_content}{br2}", 0, is_source=True, leave_comment=True)
+        source_init = self.make_method(f"bool {self.name}::Init() {br1}{init_content}{br2}", 0, is_source=True, fix_content=init_content)
+        source_exec = self.make_method(f"void {self.name}::Exec(Option_t *option) const {br1}{exec_content}{br2}", 0, is_source=True, fix_content=exec_content)
+        source_clear = self.make_method(f"void {self.name}::Clear(Option_t *option) const {br1}{clear_content}{br2}", 0, is_source=True, fix_content=clear_content)
+        source_print = self.make_method(f"void {self.name}::Print(Option_t *option) const {br1}{print_content}{br2}", 0, is_source=True, fix_content=print_content)
+        source_copy = self.make_method (f"void {self.name}::Copy (TObject  &object) const {br1}{copy_content}{br2}", 0, is_source=True, fix_content=copy_content)
 
         ############## protected ##############
         header_class_protected = ' '*self.tab_size + "protected:"
@@ -1267,7 +1268,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         header_class_private = ' '*self.tab_size + "private:"
         if mode==m_task:
             header_private_par = tab2 + etab2.join(self.data_array_def_list)
-        header_private_par = tab2 + etab2.join(self.par_def_list[2])
+        header_private_par = header_private_par + 2*etab2 + etab2.join(self.par_def_list[2])
 
         ############## other ##############
         header_class_end = "};"
@@ -1283,16 +1284,16 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor,
                 "", header_init, header_exec,
-                "", header_getter,
-                "", header_setter]
+                header_getter,
+                header_setter]
         elif mode==m_cont:
             header_list = [
                 header_define, header_include_root, header_include_lilak, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor,
                 "", header_clear, header_print, header_copy,
-                "", header_getter,
-                "", header_setter]
+                header_getter,
+                header_setter]
 
         if len(header_public_par.strip())>0:    header_list.extend(["", header_public_par])
         if len(header_protected_par.strip())>0: header_list.extend(["",header_class_protected, header_protected_par])
