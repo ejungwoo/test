@@ -572,15 +572,22 @@ class lilakcc:
             if par_initv[par_initv.find('.')+1].isdigit()==False:
                 init_from_header = False
 
-        if len(par_type)<10:
-            if init_from_header: line_par_definition = f'{par_type:10} {dname} = {par_initv};'
-            else:                line_par_definition = f'{par_type:10} {dname};'
-        elif len(par_type)<15:
-            if init_from_header: line_par_definition = f'{par_type:15} {dname} = {par_initv};'
-            else:                line_par_definition = f'{par_type:15} {dname};'
-        elif len(par_type)<20:
-            if init_from_header: line_par_definition = f'{par_type:20} {dname} = {par_initv};'
-            else:                line_par_definition = f'{par_type:20} {dname};'
+        par_type_ = par_type
+        if   len(par_type_)<12: par_type_ = f'{par_type_:12}'
+        elif len(par_type_)<16: par_type_ = f'{par_type_:16}'
+        elif len(par_type_)<20: par_type_ = f'{par_type_:20}'
+
+        if init_from_header: par_def = f'{dname} = {par_initv};'
+        else:                par_def = f'{dname};'
+
+        if   len(par_def)<20: par_def = f'{par_def:20}'
+        elif len(par_def)<25: par_def = f'{par_def:25}'
+        elif len(par_def)<30: par_def = f'{par_def:30}'
+        elif len(par_def)<40: par_def = f'{par_def:40}'
+        elif len(par_def)<50: par_def = f'{par_def:50}'
+        elif len(par_def)<60: par_def = f'{par_def:60}'
+
+        line_par_definition = f'{par_type_} {par_def}'
         line_par_definition = self.make_doxygen_comment(par_comments,line_par_definition,is_persistence=par_persis)
 
         if use_par_init: line_par_in_par_container = f'{par_init}'
@@ -615,9 +622,9 @@ class lilakcc:
         if len(par_setter)==0:
             set_type = par_type
             set_name = "Set" + mname[0].title()+mname[1:]
-            line_set_par = self.make_method(f"void {set_name}({set_type} {gname});", in_line=True)
+            line_set_par = self.make_method(f"void {set_name}({set_type} {lname});", in_line=True)
         else:
-            line_set_par = self.make_method(par_setter.replace("{gname}",gname), in_line=True)
+            line_set_par = self.make_method(par_setter.replace("{lname}",lname), in_line=True)
             is_method, set_type, set_name, dp, dp, dp, dp, dp, dp = self.break_line(line_set_par)
   
         ############ gettter definition ############

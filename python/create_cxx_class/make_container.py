@@ -42,7 +42,6 @@ lilakcc(
 -odata  auto fChannelArray = new TClonesArray("GETChannel",200)
 -bname  RawData
 
-+private TString fInputFileName = "~/data/texat/run_0824.dat.19-03-23_23h42m36s.38.root";
 -private TFile* fInputFile;
 -private TTree* fInputTree;
 
@@ -91,9 +90,9 @@ lilakcc(
 -private const Int_t CsInum = 64; // 1chan*64det
 
 +private TString fInputFileName = ~/data/texat/run_0824.dat.19-03-23_23h42m36s.38.root 
-+private TString fmapmmFileName =  ~/data/txtfiles/mapchantomm.txt
-+private TString fmapsiFileName =  ~/data/txtfiles/mapchantosi_CRIB.txt
-+private TString fmapX6FileName =  ~/data/txtfiles/mapchantoX6_CRIB.txt
++private TString fmapmmFileName = ~/data/txtfiles/mapchantomm.txt
++private TString fmapsiFileName = ~/data/txtfiles/mapchantosi_CRIB.txt
++private TString fmapX6FileName = ~/data/txtfiles/mapchantoX6_CRIB.txt
 +private TString fmapCsIFileName = ~/data/txtfiles/mapchantoCsI_CRIB.txt 
 
 """
