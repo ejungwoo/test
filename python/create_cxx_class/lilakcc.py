@@ -33,69 +33,29 @@ class lilakcc:
     """
 
     def __init__(self, input_lines=''):
-        # class
         self.name = ""
         self.path = "./"
         self.comment = ""
         self.tab_size = 4
         self.inherit_list = []
-
-        # for task
         self.data_init_list = []
         self.data_exec_list = []
         self.data_array_def_list = []
-
-        # container 
         self.par_clear_list = []
         self.par_print_list = []
         self.par_copy_list = []
-
-        #enum
         self.enum_list = []
-
-        # general
         self.par_def_list = [[],[],[]]
         self.par_init_list = []
         self.set_full_list = [[],[],[]]
         self.get_full_list = [[],[],[]]
         self.method_header_list = [[],[],[]]
         self.method_source_list = [[],[],[]]
-
-        # include headers
         self.include_root_list = []
         self.include_lilak_list = []
         self.include_other_list = []
-
-        # parameter file
         self.parfile_lines = []
-
-        if len(input_lines)!=0:
-            self.add(input_lines)
-  
-    def set_tab_size(self, tab_size):
-        """Set tab size"""
-        self.tab_size = tab_size
-        print("++ {:20}: {}".format("Set tab size",tab_size))
-
-    def set_file_name(self,name):
-        """Set name of the class"""
-        self.name = name
-        print("++ {:20}: {}".format("Set class",name))
-  
-    def set_file_path(self,file_path):
-        """Set path where files are created"""
-        self.path = file_path
-        print("++ {:20}: {}".format("Set file path",file_path))
-
-    def set_class_comment(self, comment):
-        """Description of the class"""
-        self.comment = comment 
-        print("++ {:20}: {}".format("Set class comment",comment))
-
-    def add_inherit_class(self, inherit_acc_class):
-        """Description of the class"""
-        self.inherit_list.append(inherit_acc_class)
-        print("++ {:20}: {}".format("Add inherit class",inherit_acc_class))
+        if len(input_lines)!=0: self.add(input_lines)
 
 ###########################################################################################################################################
     def add(self, input_lines):
@@ -110,6 +70,10 @@ class lilakcc:
             +private   -- add parameter or method as private
             +protected -- add parameter or method as protected
             +public    -- add parameter or method as public
+        for parameter definition using public, protected, private, you can use one of following bullets:
+        - '-': just define parameter and noting else
+        - '+': define setter, getter
+        - '@': define setter, getter and parameter for parameter container
 
         When defining parameter or method identifying parameter/method will be done automatically.
         Multiline definitions are also allowed.
@@ -180,9 +144,9 @@ class lilakcc:
             print(f"-------- WARNING1! [add()] no input is given!")
             return
 
-        if input_lines.find("\n")<0:
-            file_add = open(input_lines, 'r')
-            input_lines = file_add.read()
+        #if input_lines.find("\n")<0:
+        #    file_add = open(input_lines, 'r')
+        #    input_lines = file_add.read()
 
         group = []
         group_list = []
@@ -400,6 +364,32 @@ class lilakcc:
             self.add_inherit_class(inherit_group)
     
 ###########################################################################################################################################
+    def set_tab_size(self, tab_size):
+        """Set tab size"""
+        self.tab_size = tab_size
+        print("++ {:20}: {}".format("Set tab size",tab_size))
+
+    def set_file_name(self,name):
+        """Set name of the class"""
+        self.name = name
+        print("++ {:20}: {}".format("Set class",name))
+
+    def set_file_path(self,file_path):
+        """Set path where files are created"""
+        self.path = file_path
+        print("++ {:20}: {}".format("Set file path",file_path))
+
+    def set_class_comment(self, comment):
+        """Description of the class"""
+        self.comment = comment
+        print("++ {:20}: {}".format("Set class comment",comment))
+
+    def add_inherit_class(self, inherit_acc_class):
+        """Description of the class"""
+        self.inherit_list.append(inherit_acc_class)
+        print("++ {:20}: {}".format("Add inherit class",inherit_acc_class))
+
+###########################################################################################################################################
     def set_enum(self, line):
         tab2 = ' '*(self.tab_size*1)*2
         tab3 = ' '*(self.tab_size*1)*3
@@ -432,9 +422,11 @@ class lilakcc:
 
 ###########################################################################################################################################
     def make_header_source(self, line, set_content=""):
-        if len(set_content)<0:
+        if len(set_content)==0:
             set_content = ";"
-        return self.make_method(line, tab_no=2, set_content=""), self.make_method(line, tab_no=0, is_source=True, set_content=set_content)
+        header_content = self.make_method(line, tab_no=2, set_content="")
+        source_content = self.make_method(line, tab_no=0, is_source=True, set_content=set_content)
+        return header_content, source_content
 
 ###########################################################################################################################################
     def make_method(self, line, tab_no=0, is_source=False, set_content="", comment="", in_line=False, omit_semicolon=False):
@@ -442,6 +434,9 @@ class lilakcc:
         if is_source:
             method_name = f"{self.name}::{method_name}"
             method_init = ""
+            #if line.find("option")>0: print("4>>>>>",method_arguments)
+            method_arguments = method_arguments.replace('=""','')
+            #if line.find("option")>0: print("5>>>>>",method_arguments)
 
         if len(set_content)>0:
             method_contents = set_content
@@ -453,7 +448,7 @@ class lilakcc:
         else:
             semicolon = ";"
 
-        line_const = f" const" if len(method_const)>0 else " "
+        line_const = f" const" if len(method_const)>0 else ""
         line_arguments = "(" + method_arguments + ")"
         if len(method_arguments)==0:
             line_arguments = "()"
@@ -471,7 +466,7 @@ class lilakcc:
             else:
                 line_content = " { " + method_contents + " }"
         else:
-            line_const = ""
+            #line_const = ""
             line_content = semicolon
         if len(method_type)!=0:
             method_type = method_type + " "
@@ -647,7 +642,7 @@ class lilakcc:
             line_par_in_copy = self.make_method(par_copy.replace("{gname}",gname), in_line=True)
 
         ############  ############  ############
-        if par_parc_pm=='+':
+        if par_parc_pm=='@':
             if len(line_par_comment_in_init)!=0:
                 self.par_init_list.append(line_par_comment_in_init);
             self.par_init_list.append(line_par_init_in_init);
@@ -655,11 +650,11 @@ class lilakcc:
         self.par_print_list.append(line_par_in_print);
         self.par_copy_list.append(line_par_in_copy);
         self.par_def_list[ias].append(line_par_definition);
-        if par_parc_pm in ['+']:
+        if par_parc_pm in ['+','@']:
             self.set_full_list[0].append(line_set_par);
-        if par_parc_pm in ['+']:
+        if par_parc_pm in ['+','@']:
             self.get_full_list[0].append(line_get_par);
-        if par_parc_pm=='+':
+        if par_parc_pm=='@':
             self.parfile_lines.append(line_par_in_par_container)
 
         #print('++ par    :'  ,lines0)
@@ -958,14 +953,14 @@ class lilakcc:
 
                 for i in range(len(lines)):
                     lines[i] = lines[i].strip()
-                    if lines[i].find("///<!")>=0:  lines[i] = lines[i][5:]
-                    elif lines[i].find("///<")>=0: lines[i] = lines[i][4:]
-                    elif lines[i].find("//!")>=0:  lines[i] = lines[i][3:]
-                    elif lines[i].find("///")>=0:  lines[i] = lines[i][3:]
-                    elif lines[i].find("/**")>=0:  lines[i] = lines[i][3:]
-                    elif lines[i].find("//")>=0:   lines[i] = lines[i][2:]
-                    elif lines[i].find("*/")>=0:   lines[i] = lines[i][2:]
-                    elif lines[i].find("*")>=0:    lines[i] = lines[i][1:]
+                    if lines[i].find("///<!")==0:  lines[i] = lines[i][5:]
+                    elif lines[i].find("///<")==0: lines[i] = lines[i][4:]
+                    elif lines[i].find("//!")==0:  lines[i] = lines[i][3:]
+                    elif lines[i].find("///")==0:  lines[i] = lines[i][3:]
+                    elif lines[i].find("/**")==0:  lines[i] = lines[i][3:]
+                    elif lines[i].find("//")==0:   lines[i] = lines[i][2:]
+                    elif lines[i].find("*/")==0:   lines[i] = lines[i][2:]
+                    elif lines[i].find("*")==0:    lines[i] = lines[i][1:]
                     lines[i] = lines[i].strip()
                     lines[i] = ' * ' + lines[i]
                 if not_for_doxygen: lines.insert(0,"/*")
@@ -1182,13 +1177,20 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
 ## If you have time
     - Write Copy() for copying object"""
+        elif mode==m_detector:
+            header_detail="""Remove this comment block after reading it through
+    Or use print_example_comments=False option to omit printing
+
+# Example LILAK detector class
+"""
+
         elif mode==m_detector_plane:
             header_detail="""Remove this comment block after reading it through
     Or use print_example_comments=False option to omit printing
 
 # Example LILAK detector plane class
 
-# Given method in LKDetectorPlane class
+# Given members in LKDetectorPlane class
 
 ## public:
     - void SetDetector(LKDetector *detector);
@@ -1227,8 +1229,9 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         ############## public ##############
         self.par_init_list.insert(0,"// Put intialization todos here which are not iterative job though event")
-        self.par_init_list.insert(1,f'lk_info << "Initializing {self.name}" << std::endl;')
+        self.par_init_list.insert(1,f'lx_info << "Initializing {self.name}" << std::endl;')
         self.par_init_list.insert(2,"")
+        self.par_init_list.append("return true;")
         init_content = '\n'.join(self.par_init_list)
 
         self.data_init_list.insert(0,"")
@@ -1236,7 +1239,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
 
         self.data_exec_list.insert(0,"// Exec() method will be executed every event.")
         self.data_exec_list.append("")
-        self.data_exec_list.append(f'lk_info << "{self.name} container" << std::endl;')
+        self.data_exec_list.append(f'lx_info << "{self.name} container" << std::endl;')
         exec_content = '\n'.join(self.data_exec_list)
 
         self.par_clear_list.insert(0,f"{inherit_class}::Clear(option);")
@@ -1246,6 +1249,25 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         self.par_print_list.insert(1,f"{inherit_class}::Print();")
         self.par_print_list.insert(2,f'lx_info << "{self.name} container" << std::endl;')
         print_content = '\n'.join(self.par_print_list)
+
+        dete2_content = """// example plane
+// auto plane = new LKDetectorPlane();
+// plane -> SetPlaneID(0);
+// plane -> SetDetector(this);
+// plane -> Init();
+return true;
+"""
+        getcvs_content = f"""// example canvas
+// if (fCanvas==nullptr)
+//     fCanvas = new TCanvas("{self.name}",{self.name});
+// return fCanvas;
+return (TCanvas *) nullptr;"""
+
+        gethist_content = f"""// example hist
+// if (fHist==nullptr)
+//     fHist = new TH2D("{self.name}",{self.name},10,0,10);
+// return fHist;
+return (TH2D *) nullptr;"""
 
         self.par_copy_list.insert(0,"// You should copy data from this container to objCopy")
         self.par_copy_list.insert(1,f"{inherit_class}::Copy(object);")
@@ -1265,23 +1287,23 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
         ############## public ##############
         header_init, source_init = self.make_header_source(f'bool Init()', init_content)
         header_exec, source_exec = self.make_header_source(f'void Exec(Option_t *option="")', exec_content)
-        header_erun, source_erun = self.make_header_source(f"bool EndOfRun()","reutrn true")
+        header_erun, source_erun = self.make_header_source(f"bool EndOfRun()","return true;")
 
         header_clear, source_clear = self.make_header_source(f'void Clear(Option_t *option="")', clear_content)
         header_print, source_print = self.make_header_source(f'void Print(Option_t *option="") const', print_content)
-        header_copy,  source_copy  = self.make_header_source(f'void Copy(TObject &object) const')
+        header_copy,  source_copy  = self.make_header_source(f'void Copy(TObject &object) const', copy_content)
 
-        header_dete1, source_dete1 = self.make_header_source('bool BuildGeometry()')
-        header_dete2, source_dete2 = self.make_header_source('bool BuildDetectorPlane()')
+        header_dete1, source_dete1 = self.make_header_source('bool BuildGeometry()', "return true;")
+        header_dete2, source_dete2 = self.make_header_source('bool BuildDetectorPlane()', dete2_content)
 
-        header_detp0, source_detp0 = self.make_header_source('bool IsInBoundary(Double_t i, Double_t j)')
+        header_detp0, source_detp0 = self.make_header_source('bool IsInBoundary(Double_t i, Double_t j)', "return true;")
         header_detp1, source_detp1 = self.make_header_source('Int_t FindChannelID(Double_t i, Double_t j)')
-        header_detp2, source_detp2 = self.make_header_source('TCanvas *GetCanvas(Option_t *option = "");')
-        header_detp3, source_detp3 = self.make_header_source('TH2* GetHist(Option_t *option="-1")')
-        header_detp4, source_detp4 = self.make_header_source('bool DrawEvent(Option_t *option="");')
-        header_detp5, source_detp5 = self.make_header_source('bool SetDataFromBranch()', 'return false')
+        header_detp2, source_detp2 = self.make_header_source('TCanvas *GetCanvas(Option_t *option="");', getcvs_content)
+        header_detp3, source_detp3 = self.make_header_source('TH2* GetHist(Option_t *option="")', gethist_content)
+        header_detp4, source_detp4 = self.make_header_source('bool DrawEvent(Option_t *option="");', "return true;")
+        header_detp5, source_detp5 = self.make_header_source('bool SetDataFromBranch()', 'return false;')
         header_detp6, source_detp6 = self.make_header_source('void DrawHist();')
-        header_detp7, source_detp7 = self.make_header_source('void DrawFrame(Option_t *option = "")')
+        header_detp7, source_detp7 = self.make_header_source('void DrawFrame(Option_t *option="")')
         header_detp9, source_detp9 = self.make_header_source('void MouseClickEvent(int iPlane);')
         header_detpa, source_detpa = self.make_header_source('void ClickedAtPosition(Double_t x, Double_t y)')
 
@@ -1332,7 +1354,7 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 header_define, header_include_root, header_include_lilak, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
-                "", header_clear, header_print, header_init,
+                "", header_print, header_init,
                 header_dete1, header_dete2,
                 header_getter, header_setter]
         elif mode==m_detector_plane:
@@ -1340,9 +1362,9 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 header_define, header_include_root, header_include_lilak, header_include_other,
                 "", header_detail, header_description, header_class,
                 header_class_public, header_constructor, header_destructor, header_enum,
-                "", header_clear, header_print, header_init,
+                "", header_print, header_init,
                 header_detp0, header_detp1, header_detp2, header_detp3, header_detp4,
-                header_detp5, header_detp6, header_detp7, header_detp9, header_detpa,
+                header_detp5, header_detp6, header_detp7, "", header_detp9, header_detpa,
                 header_getter, header_setter]
 
         if len(header_public_par.strip())>0:    header_list.extend(["",header_public_par])
@@ -1375,30 +1397,28 @@ for (int {i_data} = 0; {i_data} < {num_data}; ++{i_data})"""
                 source_include,
                 "",source_classimp,
                 "",source_constructor,
-                "",source_clear,
+                "",source_init,
                 "",source_print,
-                "",source_copy,
-                "",header_dete1,
-                "",header_dete2
+                "",source_dete1,
+                "",source_dete2
                 ]
         elif mode==m_detector_plane:
             source_list = [
                 source_include,
                 "",source_classimp,
                 "",source_constructor,
-                "",source_clear,
+                "",source_init,
                 "",source_print,
-                "",source_copy,
-                "",header_detp0,
-                "",header_detp1,
-                "",header_detp2,
-                "",header_detp3,
-                "",header_detp4,
-                "",header_detp5,
-                "",header_detp6,
-                "",header_detp7,
-                "",header_detp9,
-                "",header_detpa
+                "",source_detp0,
+                "",source_detp1,
+                "",source_detp2,
+                "",source_detp3,
+                "",source_detp4,
+                "",source_detp5,
+                "",source_detp6,
+                "",source_detp7,
+                "",source_detp9,
+                "",source_detpa
                 ]
         source_all = '\n'.join(source_list)
 
