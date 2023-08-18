@@ -49,3 +49,6 @@ figures/
 
 #trash
 trash
+
+fortran_to_c_converter
+create_cxx_class
