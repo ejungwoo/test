@@ -1,2 +1,8 @@
+## P1_P2_sim.out
+
 보내준 파일을 보면, P1_energy, P1 angle. P2 energy, P2 angle 이순서대로 되어 있습니다. 
 한번에 두개의 양성자를 generate 하는데, (E1-MeV, A1-degree, E2-MeV, A2-degree) 이런 형태의 data 입니다. 
+
+angle = theta
+phi = 0~6 도 사이에서 랜덤
+draw E1:A1, E2:A2, E1:E2, A1:A2
