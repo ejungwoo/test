@@ -1,5 +1,5 @@
 document
-.for
+*.for
 
 #python
 __pycache__
