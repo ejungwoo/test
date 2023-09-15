@@ -47,17 +47,21 @@ class bib_manager:
                 lines, entry_title, entry_value = self.find_next_entry(lines)
                 entry_title = entry_title.lower()
                 if entry_title=="": break
-                if entry_title=="author": self.make_author_list(entry_value)
-                if entry_title=="pages": self.make_pages(entry_value)
-                if entry_title=="journal": self.make_journal(entry_value) 
-                if entry_title=="archiveprefix": self.make_archivePrefix(entry_value) 
-                if entry_title=="school": self.make_school(entry_value) 
                 if entry_title=='"': continue
                 if entry_title=="@":
                     found_aa = True
                     break
-                if self.print_process: print(f"++++++++++++++++++++ entry : {entry_title} {entry_value}")
-                self.bib_entries[entry_title] = entry_value
+                if entry_title=="author": self.make_author_list(entry_value)
+                elif entry_title=="pages": self.make_pages(entry_value)
+                elif entry_title=="journal": self.make_journal(entry_value)
+                elif entry_title=="school": self.make_school(entry_value)
+                else: self.bib_entries[entry_title] = entry_value
+                if self.print_process:
+                    line_example = lines
+                    if len(line_example)>19:
+                        line_example = lines[:20].strip() + " ..."
+                    print(f"++++++++++++++++++++ lines : {line_example}")
+                    print(f"++++++++++++++++++++ entry : {entry_title} >> {entry_value}")
             self.make_bib()
             print(f' 0. name                {self.make_bib_name()}  ({self.bib_name})')
             list_of_keys = []
@@ -68,25 +72,48 @@ class bib_manager:
                 break
 
     def make_bib(self):
-        if self.bib_entries["type"]=="misc":
+        bib_is_arxiv = False
+        if self.bib_entries["type"]=="inproceedings":
+            if "archiveprefix" in self.bib_entries:
+                bib_is_arxiv = True
+        #__TECHINAL_REPORT_______________________________
+        if self.bib_entries["type"]=="techreport":
+            if "reportnumber" in self.bib_entries:
+                self.bib_entries["volume"] = self.bib_entries["reportnumber"].replace("-","")
+            else:
+                self.bib_entries["volume"] = ""
+            if "institution" in self.bib_entries:
+                institution = self.bib_entries["institution"].replace("-","")
+                self.make_journal(institution,True)
+            else:
+                self.make_journal("Techical Report")
+            self.bib_entries["pages1"] = ""
+        #__ARXIV_________________________________________
+        elif self.bib_entries["type"]=="misc" or bib_is_arxiv:
             key_contain_arxiv = ("archiveprefix" in self.bib_entries)
-            url_contain_arxiv = (self.bib_entries["url"].find("arxiv.org")>=0)
+            url_contain_arxiv = False
+            if "url" in self.bib_entries:
+                url_contain_arxiv = (self.bib_entries["url"].find("arxiv.org")>=0)
             if key_contain_arxiv or url_contain_arxiv:
                 self.make_journal("Arxiv")
                 eprint = self.bib_entries["eprint"]
                 if eprint.find("/")>=0:
                     self.bib_entries["volume"] = eprint.split("/")[0]
                     self.bib_entries["pages1"] = eprint.split("/")[1]
+                elif eprint.find("_")>=0:
+                    self.bib_entries["volume"] = eprint.split("_")[0]
+                    self.bib_entries["pages1"] = eprint.split("_")[1]
                 elif eprint.find(".")>=0:
                     self.bib_entries["volume"] = eprint.split(".")[0]
                     self.bib_entries["pages1"] = eprint.split(".")[1]
                 self.bib_entries["volume"] = self.bib_entries["volume"].replace("-","")
             else:
-                self.bib_entries["journal"] = ["","",""]
+                self.make_journal("MISC",True)
                 self.bib_entries["volume"] = ""
                 self.bib_entries["pages1"] = ""
-        if self.bib_entries["type"]=="phdthesis":
-            self.bib_entries["journal"] = ["Thesis","Thesis","Thesis"]
+        #__THESIS________________________________________
+        elif self.bib_entries["type"]=="phdthesis":
+            self.make_journal("Thesis",True)
             self.bib_entries["volume"] = ""
             self.bib_entries["pages1"] = ""
 
@@ -107,16 +134,20 @@ class bib_manager:
         init_notation_is_dbquote = False
         meet_special_command = 1
         signal_end_of_value = False
-        count_c = 0
+        count_word_c = 0
+        count_all_c = 0
         prev_c = ""
         for curr_c in lines:
-            count_c = count_c + 1
+            count_all_c = count_all_c + 1
+            #if curr_c==',' and count_word_c>1:
+            #    break
+            #el
             if signal_end_of_value:
                 if curr_c==',': break
                 elif curr_c==' ' or curr_c=="\n": continue
                 else:
                     break
-                    count_c = count_c - 1
+                    count_all_c = count_all_c - 1
             elif curr_c=='\\':
                 meet_special_command = 0
             elif meet_special_command==0:
@@ -142,10 +173,11 @@ class bib_manager:
                         inside_dbquote = True
                     if init_notation_is_bracket and inside_dbquote==False:
                         signal_end_of_value = True
-
+            else:
+                count_word_c = count_word_c + 1
             prev_c = curr_c
             entry_value = entry_value + curr_c
-        lines = lines[count_c:]
+        lines = lines[count_all_c:]
         if signal_end_of_value==False:
             return lines, "", ""
         entry_value = entry_value.strip()
@@ -170,6 +202,13 @@ class bib_manager:
         if len(volm)>0: volm = "v" + volm + "_"
         if len(page)>0: page = "p" + page + "_"
         if len(comm)>0: comm = comm + "_"
+        print(f"name = {name}")
+        print(f"colb = {colb}")
+        print(f"jour = {jour}")
+        print(f"year = {year}")
+        print(f"volm = {volm}")
+        print(f"page = {page}")
+        print(f"comm = {comm}")
         bib_name = name + colb + jour + year + volm + page + comm
         bib_name = bib_name[:-1]
         return bib_name
@@ -184,24 +223,38 @@ class bib_manager:
         return last_name+first_name+middle_name
 
     def make_school(self, entry_value):
+        self.bib_entries["school"] = entry_value
         pass
 
     def make_archivePrefix(self, entry_value):
         self.make_journal("Arxiv")
 
-    def make_journal(self, entry_value):
-        found_etnry = False
-        for journal_entry in self.journal_list:
-            if journal_entry[0]==entry_value:
-                self.bib_entries["journal"]=journal_entry
-                found_etnry = True
-                break
-        if found_etnry==False:
-            print(f"WARNING! Add journal {entry_value} to journal list")
-            return
+    def make_journal(self, entry_value, register_temporarily=False):
+        if register_temporarily:
+            journal1 = entry_value.strip()
+            journal2 = entry_value.strip()
+            journal3 = entry_value.strip()
+            if journal2.find(" ")>=0:
+                split_journal2 = journal2.split()
+                journal2 = ""
+                for token_journal2 in split_journal2:
+                    journal2 = journal2 + token_journal2[0].upper()
+            print(f'NOTE! The journal "{entry_value}" will be added temporarily: {journal1} / {journal2} / {journal3}')
+            self.bib_entries["journal"] = [journal1,journal2,journal3]
+        elif len(entry_value)>0:
+            found_etnry = False
+            for journal_entry in self.journal_list:
+                if journal_entry[0]==entry_value:
+                    self.bib_entries["journal"] = journal_entry
+                    found_etnry = True
+                    break
+            if found_etnry==False:
+                print(f'WARNING! Add journal "{entry_value}" to journal list')
+                exit()
         if self.print_process: print(f'++++++++++++++++++++ journal : {self.bib_entries["journal"][0]}  /  {self.bib_entries["journal"][1]}  /  {self.bib_entries["journal"][2]}')
 
     def make_pages(self, entry_value):
+        self.bib_entries["pages"] = entry_value
         self.bib_entries["pages1"] = ""
         self.bib_entries["pages2"] = ""
         if entry_value.find("--")>=0:
@@ -217,15 +270,13 @@ class bib_manager:
 
     def make_author_list(self, entry_value):
         name_is_last_to_first = False
-        if entry_value.find(",")>=0:
-            name_is_last_to_first = True
         author_names = entry_value.split(" and ")
-        print(author_names)
         for author_name in author_names:
             last_name = ""
             middle_name = ""
             first_name = ""
-            if name_is_last_to_first:
+            if author_name.find(",")>=0:
+            #if name_is_last_to_first:
                 author_name_break = author_name.split(",")
                 num_breaks = len(author_name_break)
                 last_name = author_name_break[0].strip()
@@ -242,6 +293,7 @@ class bib_manager:
             if len(self.author_list)==0:
                 self.author1 = [first_name, middle_name, last_name]
             self.author_list.append([first_name, middle_name, last_name])
+        self.bib_entries["author"] = self.author_list
 
 if __name__ == "__main__":
     bib_manager("input")
