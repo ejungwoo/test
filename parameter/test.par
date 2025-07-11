@@ -1,0 +1,35 @@
+NPTool/Reaction/Beam/Particle           proton
+#NPTool/Reaction/Beam/ExcitationEnergy   0
+#NPTool/Reaction/Beam/ZEmission          0
+#NPTool/Reaction/Beam/ZProfile           0
+#NPTool/Reaction/Beam/Energy             0
+#NPTool/Reaction/Beam/SigmaEnergy        0
+#NPTool/Reaction/Beam/EnergyProfilePath  
+#NPTool/Reaction/Beam/SigmaThetaX        0
+#NPTool/Reaction/Beam/SigmaPhiY          0
+#NPTool/Reaction/Beam/SigmaX             0
+#NPTool/Reaction/Beam/SigmaY             0
+#NPTool/Reaction/Beam/MeanThetaX         0
+#NPTool/Reaction/Beam/MeanPhiY           0
+#NPTool/Reaction/Beam/MeanX              0
+#NPTool/Reaction/Beam/MeanY              0
+#NPTool/Reaction/Beam/XThetaXProfilePath 
+#NPTool/Reaction/Beam/YPhiYProfilePath   
+
+Beam/Particle           proton
+Beam/ExcitationEnergy   0
+Beam/ZEmission          0
+Beam/ZProfile           0
+Beam/Energy             0
+Beam/SigmaEnergy        0
+Beam/EnergyProfilePath  
+Beam/SigmaThetaX        0
+NPTool/Reaction/Beam/SigmaPhiY          0
+NPTool/Reaction/Beam/SigmaX             0
+NPTool/Reaction/Beam/SigmaY             0
+NPTool/Reaction/Beam/MeanThetaX         0
+NPTool/Reaction/Beam/MeanPhiY           0
+NPTool/Reaction/Beam/MeanX              0
+NPTool/Reaction/Beam/MeanY              0
+NPTool/Reaction/Beam/XThetaXProfilePath 
+NPTool/Reaction/Beam/YPhiYProfilePath   

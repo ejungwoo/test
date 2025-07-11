@@ -1,0 +1,50 @@
+run_type     e{TYPE}
+cut_type     e{CUT}  # e4_etlab e4_etcom e5_etlab e5_etcom e8_etlab e8_etcom
+pid_type     e{PID}  #pid_proton_and_stopped
+@-run_type/run_type e5
+#@-pid_type/pid_type pid_tight
+
+cut_name cutX
+cut_title
+pid_name  pidAll
+pid_title
+
+analysis/binning_cal_energy 400, 0, 30
+analysis/binning_q_value 500, -3, 3
+#analysis/binning_theta 360, 0, 180
+analysis/binning_theta 180, 0, 180
+
+#####################################
+@e4/
+    #pair_energy_range    8, 14 
+    pair_energy_range    4, 24
+    LKRun/RunIDRange     20:25, 29:36, 38 ,!31
+    ko2421/beam_energy   4.41
+    #ko2421/beam_energy   4.3553
+    ko2421/beam_rate     1.9E6
+    ko2421/run_time      11460
+    ko2421/n_target      2.56E19
+    ko2421/diffx_fresco  {lilak_common}/differential_cross_section_fresco.441.dat
+    pid_name    ProtonCut
+    pid_title   <ProtonCut>
+    analysis/cut_dE_vs_ETot_X6X6    cut0    y>(x-0.2)&&(x>{pair_energy_range[0]})&&(x<{pair_energy_range[1]})  true
+    analysis/cut_dE_vs_ETot_X6CSD   cut0    false true
+
+@e5/
+    #pair_energy_range    10, 19
+    pair_energy_range    4, 24
+    LKRun/RunIDRange     39:42, 44:54, 56:59, 61:63, 65:69, 72
+    ko2421/beam_energy   5.838
+    #/ko2421/beam_energy   5.7903
+    ko2421/beam_rate     1.9E6
+    ko2421/run_time      9415+4736
+    ko2421/n_target      2.56E19
+    ko2421/diffx_fresco  {lilak_common}/differential_cross_section_fresco.5838.dat
+    pid_name    ProtonCut
+    pid_title   <ProtonCut>
+    analysis/cut_dE_vs_ETot_X6X6/expression "cut0"
+    analysis/cut_dE_vs_ETot_X6X6    cut0    y>(x-0.2)&&(x>{pair_energy_range[0]})&&(x<{pair_energy_range[1]})  true
+    analysis/cut_dE_vs_ETot_X6CSD/expression "(cut0 && cut1)"
+    analysis/cut_dE_vs_ETot_X6CSD   cut0    {lilak_common}/cutg.ko2421_e5.dE_vs_ETot.x6_csd.proton_island.root true
+    analysis/cut_dE_vs_ETot_X6CSD   cut1    (x>{pair_energy_range[0]})&&(x<{pair_energy_range[1]})  true
+
